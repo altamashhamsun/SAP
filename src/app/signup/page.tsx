@@ -44,145 +44,113 @@ export default function Signup() {
         <div className="sap-top-bar-left">
           <svg className="sap-logo" viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg">
             <rect x="0" y="5" width="30" height="30" rx="4" fill="#fff" />
-            <text x="8" y="27" fontFamily="Arial, sans-serif" fontSize="18" fontWeight="bold" fill="#0070f3">S</text>
-            <text x="40" y="28" fontFamily="Arial, sans-serif" fontSize="22" fontWeight="bold" fill="#fff">SAP</text>
+            <text x="8" y="27" fontFamily="Arial, sans-serif" fontSize="18" fontWeight="bold" fill="#0070f3">Q</text>
+            <text x="40" y="28" fontFamily="Arial, sans-serif" fontSize="22" fontWeight="bold" fill="#fff">QAC</text>
           </svg>
-        </div>
-        <div className="sap-top-bar-right">
-          <Link href="/login" className="sap-top-link">Already have an account? Log On</Link>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="sap-login-container">
-        {/* Left Panel - Branding */}
-        <div className="sap-branding-panel">
-          <div className="sap-branding-content">
-            <div className="sap-brand-logo">
-              <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
-                <rect x="0" y="10" width="40" height="40" rx="6" fill="rgba(255,255,255,0.2)" />
-                <text x="10" y="38" fontFamily="Arial, sans-serif" fontSize="26" fontWeight="bold" fill="#fff">S</text>
-                <text x="50" y="42" fontFamily="Arial, sans-serif" fontSize="32" fontWeight="bold" fill="#fff">SAP</text>
+      {/* Centered Signup */}
+      <div className="sap-login-center">
+        <div className="sap-login-card">
+          <div className="sap-login-header">
+            <div className="sap-brand-logo-center">
+              <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+                <rect x="0" y="0" width="60" height="60" rx="12" fill="var(--sap-blue)" />
+                <text x="14" y="42" fontFamily="Arial, sans-serif" fontSize="32" fontWeight="bold" fill="#fff">Q</text>
               </svg>
             </div>
-            <h1 className="sap-brand-title">Create Your Account</h1>
-            <p className="sap-brand-subtitle">Join SAP Enterprise Resource Planning</p>
-            
-            <div className="sap-features">
-              <div className="sap-feature">
-                <div className="sap-feature-icon">◈</div>
-                <span>Access Business Applications</span>
+            <h1>Create Account</h1>
+            <p>Quality Audit and Compliance</p>
+          </div>
+
+          <form onSubmit={handleSignup} className="sap-login-form">
+            {error && (
+              <div className="sap-error-message">
+                <span className="sap-error-icon">⚠</span>
+                {error}
               </div>
-              <div className="sap-feature">
-                <div className="sap-feature-icon">◈</div>
-                <span>Manage Your Enterprise Data</span>
+            )}
+
+            {success && (
+              <div className="sap-success-message">
+                <span className="sap-success-icon">✓</span>
+                {success}
               </div>
-              <div className="sap-feature">
-                <div className="sap-feature-icon">◈</div>
-                <span>Collaborate Across Teams</span>
+            )}
+
+            <div className="sap-field-group">
+              <label htmlFor="email" className="sap-field-label">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                className="sap-field-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your.email@company.com"
+                required
+                autoComplete="email"
+              />
+            </div>
+
+            <div className="sap-field-group">
+              <label htmlFor="password" className="sap-field-label">
+                Password
+              </label>
+              <div className="sap-password-wrapper">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  className="sap-field-input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimum 6 characters"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className="sap-password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? "◉" : "○"}
+                </button>
               </div>
             </div>
-          </div>
-          
-          <div className="sap-branding-footer">
-            <p>© 2026 SAP SE. All rights reserved.</p>
+
+            <button
+              type="submit"
+              className="sap-login-button"
+              disabled={loading}
+            >
+              {loading ? (
+                <span className="sap-loading">
+                  <span className="sap-loading-spinner"></span>
+                  Creating Account...
+                </span>
+              ) : (
+                "Register"
+              )}
+            </button>
+
+            <div className="sap-login-options">
+              <span style={{ fontSize: '0.85rem', color: '#555' }}>
+                By registering, you agree to our <a href="#" className="sap-forgot-link">Terms</a>
+              </span>
+            </div>
+          </form>
+
+          <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.9rem', color: '#555' }}>
+            Already have an account? <Link href="/login" className="sap-forgot-link">Sign In</Link>
           </div>
         </div>
 
-        {/* Right Panel - Signup Form */}
-        <div className="sap-login-panel">
-          <div className="sap-login-form-container">
-            <div className="sap-login-header">
-              <h2>Register</h2>
-              <p>Create a new user account</p>
-            </div>
-
-            <form onSubmit={handleSignup} className="sap-login-form">
-              {error && (
-                <div className="sap-error-message">
-                  <span className="sap-error-icon">⚠</span>
-                  {error}
-                </div>
-              )}
-
-              {success && (
-                <div className="sap-success-message">
-                  <span className="sap-success-icon">✓</span>
-                  {success}
-                </div>
-              )}
-
-              <div className="sap-field-group">
-                <label htmlFor="email" className="sap-field-label">
-                  Email Address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  className="sap-field-input"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.email@company.com"
-                  required
-                  autoComplete="email"
-                />
-              </div>
-
-              <div className="sap-field-group">
-                <label htmlFor="password" className="sap-field-label">
-                  Password
-                </label>
-                <div className="sap-password-wrapper">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    className="sap-field-input"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Minimum 6 characters"
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    className="sap-password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                  >
-                    {showPassword ? "◉" : "○"}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="sap-login-button"
-                disabled={loading}
-              >
-                {loading ? (
-                  <span className="sap-loading">
-                    <span className="sap-loading-spinner"></span>
-                    Creating Account...
-                  </span>
-                ) : (
-                  "Register"
-                )}
-              </button>
-
-              <div className="sap-login-options">
-                <span className="sap-checkbox-label">
-                  By registering, you agree to our <a href="#" className="sap-forgot-link">Terms of Service</a>
-                </span>
-              </div>
-            </form>
-
-            <div className="sap-login-footer">
-              <p style={{ textAlign: 'center', fontSize: '0.9rem', color: '#555' }}>
-                Already have an account? <Link href="/login" className="sap-forgot-link">Log On</Link>
-              </p>
-            </div>
-          </div>
+        <div className="sap-center-footer">
+          <p>© 2026 QAC Portal. All rights reserved.</p>
         </div>
       </div>
     </div>
