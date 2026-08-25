@@ -1124,6 +1124,18 @@ body {
   font-weight: 600;
 }
 
+.sap-edit-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .sap-edit-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .sap-autosave-status {
   font-size: 0.8rem;
   padding: 0.25rem 0.6rem;
