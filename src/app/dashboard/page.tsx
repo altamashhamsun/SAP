@@ -146,16 +146,16 @@ export default function Dashboard() {
     : "N/A";
 
   const tiles = [
-    { icon: "audit", title: "Core Audit Management", desc: "Plan, schedule, and execute quality audits" },
-    { icon: "ncr", title: "Non-Conformance & Corrective Action", desc: "Track NCRs, root cause analysis, and CAPA" },
-    { icon: "compliance", title: "Compliance Tracking", desc: "Monitor regulatory and internal compliance" },
-    { icon: "document", title: "Document Control", desc: "Manage SOPs, policies, and revisions" },
-    { icon: "risk", title: "Risk Management", desc: "Identify, assess, and mitigate risks" },
-    { icon: "people", title: "People & Training", desc: "Track training records and certifications" },
-    { icon: "supplier", title: "Supplier/Vendor Quality", desc: "Evaluate and monitor supplier performance" },
-    { icon: "operational", title: "Operational Add-ons", desc: "Industry-specific modules and extensions" },
-    { icon: "reporting", title: "Reporting & Analytics", desc: "Dashboards, KPIs, and trend analysis" },
-    { icon: "admin", title: "System/Admin", desc: "Users, roles, and system configuration" },
+    { icon: "audit", title: "Core Audit Management" },
+    { icon: "ncr", title: "Non-Conformance & Corrective Action" },
+    { icon: "compliance", title: "Compliance Tracking" },
+    { icon: "document", title: "Document Control" },
+    { icon: "risk", title: "Risk Management" },
+    { icon: "people", title: "People & Training" },
+    { icon: "supplier", title: "Supplier/Vendor Quality" },
+    { icon: "operational", title: "Operational Add-ons" },
+    { icon: "reporting", title: "Reporting & Analytics" },
+    { icon: "admin", title: "System/Admin" },
   ];
 
   return (
@@ -193,7 +193,6 @@ export default function Dashboard() {
               </div>
               <div className="sap-tile-body">
                 <h3>{tile.title}</h3>
-                <p>{tile.desc}</p>
               </div>
             </div>
           ))}
