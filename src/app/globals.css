@@ -1,19 +1,16 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  --sap-blue: #0070f3;
+  --sap-dark-blue: #0051a8;
+  --sap-navy: #0a2540;
+  --sap-light-blue: #e6f2ff;
+  --sap-gray: #555;
+  --sap-light-gray: #f5f5f5;
+  --sap-border: #d9d9d9;
+  --sap-text: #333;
+  --sap-white: #ffffff;
+  --sap-success: #107c10;
+  --sap-error: #cc0000;
+  --sap-warning: #e97025;
 }
 
 * {
@@ -21,6 +18,453 @@ body {
   padding: 0;
   margin: 0;
 }
+
+body {
+  font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+  background: var(--sap-light-gray);
+  color: var(--sap-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ==================== SAP LOGIN PAGE ==================== */
+
+.sap-login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top Bar */
+.sap-top-bar {
+  background: var(--sap-navy);
+  padding: 0 2rem;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sap-top-bar-left {
+  display: flex;
+  align-items: center;
+}
+
+.sap-logo {
+  height: 28px;
+  width: auto;
+}
+
+.sap-top-bar-right {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.sap-top-link {
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: color 0.2s;
+}
+
+.sap-top-link:hover {
+  color: #fff;
+}
+
+/* Main Container */
+.sap-login-container {
+  flex: 1;
+  display: flex;
+  min-height: calc(100vh - 48px);
+}
+
+/* Branding Panel */
+.sap-branding-panel {
+  flex: 1;
+  background: linear-gradient(135deg, var(--sap-blue) 0%, var(--sap-navy) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.sap-branding-panel::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.sap-branding-content {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+}
+
+.sap-brand-logo {
+  margin-bottom: 2rem;
+}
+
+.sap-brand-logo svg {
+  height: 60px;
+  width: auto;
+}
+
+.sap-brand-title {
+  color: var(--sap-white);
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  line-height: 1.2;
+}
+
+.sap-brand-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.1rem;
+  margin-bottom: 2.5rem;
+}
+
+.sap-features {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sap-feature {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+}
+
+.sap-feature-icon {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.2rem;
+}
+
+.sap-branding-footer {
+  position: absolute;
+  bottom: 2rem;
+  left: 3rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+}
+
+/* Login Panel */
+.sap-login-panel {
+  width: 520px;
+  background: var(--sap-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.sap-login-form-container {
+  width: 100%;
+  max-width: 380px;
+}
+
+.sap-login-header {
+  margin-bottom: 2rem;
+}
+
+.sap-login-header h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--sap-text);
+  margin-bottom: 0.5rem;
+}
+
+.sap-login-header p {
+  color: var(--sap-gray);
+  font-size: 0.9rem;
+}
+
+/* Form */
+.sap-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.sap-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sap-field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--sap-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sap-field-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--sap-border);
+  border-radius: 4px;
+  font-size: 0.95rem;
+  color: var(--sap-text);
+  background: var(--sap-white);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.sap-field-input:focus {
+  border-color: var(--sap-blue);
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.15);
+}
+
+.sap-field-input::placeholder {
+  color: #aaa;
+}
+
+/* Password */
+.sap-password-wrapper {
+  position: relative;
+}
+
+.sap-password-wrapper .sap-field-input {
+  padding-right: 3rem;
+}
+
+.sap-password-toggle {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--sap-gray);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.25rem;
+}
+
+.sap-password-toggle:hover {
+  color: var(--sap-blue);
+}
+
+/* Select */
+.sap-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
+  cursor: pointer;
+}
+
+/* Login Button */
+.sap-login-button {
+  width: 100%;
+  padding: 1rem;
+  background: var(--sap-blue);
+  color: var(--sap-white);
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  margin-top: 0.5rem;
+}
+
+.sap-login-button:hover:not(:disabled) {
+  background: var(--sap-dark-blue);
+}
+
+.sap-login-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.sap-login-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Loading */
+.sap-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.sap-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error */
+.sap-error-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: #fff2f2;
+  border: 1px solid #ffcdd2;
+  border-radius: 4px;
+  color: var(--sap-error);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.sap-error-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Success */
+.sap-success-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: #f0fff0;
+  border: 1px solid #c8e6c9;
+  border-radius: 4px;
+  color: var(--sap-success);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.sap-success-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-weight: bold;
+}
+
+/* Login Options */
+.sap-login-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sap-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--sap-gray);
+  cursor: pointer;
+}
+
+.sap-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sap-blue);
+  cursor: pointer;
+}
+
+.sap-forgot-link {
+  font-size: 0.85rem;
+  color: var(--sap-blue);
+  text-decoration: none;
+}
+
+.sap-forgot-link:hover {
+  text-decoration: underline;
+}
+
+/* Footer */
+.sap-login-footer {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--sap-border);
+}
+
+.sap-footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+}
+
+.sap-footer-links a {
+  color: var(--sap-gray);
+  text-decoration: none;
+}
+
+.sap-footer-links a:hover {
+  color: var(--sap-blue);
+  text-decoration: underline;
+}
+
+.sap-footer-divider {
+  color: var(--sap-border);
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 900px) {
+  .sap-login-container {
+    flex-direction: column;
+  }
+
+  .sap-branding-panel {
+    min-height: 250px;
+    padding: 2rem;
+  }
+
+  .sap-branding-footer {
+    display: none;
+  }
+
+  .sap-login-panel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .sap-brand-title {
+    font-size: 1.5rem;
+  }
+
+  .sap-brand-subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .sap-features {
+    display: none;
+  }
+
+  .sap-login-form-container {
+    max-width: 100%;
+  }
+
+  .sap-top-bar {
+    padding: 0 1rem;
+  }
+
+  .sap-top-bar-right {
+    gap: 1rem;
+  }
+}
+
+/* ==================== EXISTING STYLES ==================== */
 
 .container {
   max-width: 1200px;
@@ -36,7 +480,7 @@ body {
 }
 
 .btn {
-  background: #0070f3;
+  background: var(--sap-blue);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -46,7 +490,7 @@ body {
 }
 
 .btn:hover {
-  background: #0051a8;
+  background: var(--sap-dark-blue);
 }
 
 .btn-secondary {
@@ -77,12 +521,12 @@ body {
 }
 
 .error {
-  color: #e00;
+  color: var(--sap-error);
   margin-bottom: 1rem;
 }
 
 .success {
-  color: #0a0;
+  color: var(--sap-success);
   margin-bottom: 1rem;
 }
 
