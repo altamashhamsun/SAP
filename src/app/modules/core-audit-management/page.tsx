@@ -20,6 +20,14 @@ function SubIcon({ type }: { type: string }) {
         <circle cx="10" cy="21" r="1.5" fill="#0070f3"/>
       </svg>
     ),
+    scheduling: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="11" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
+        <line x1="14" y1="7" x2="14" y2="14" stroke="#0070f3" strokeWidth="2" strokeLinecap="round"/>
+        <line x1="14" y1="14" x2="20" y2="18" stroke="#0070f3" strokeWidth="2" strokeLinecap="round"/>
+        <circle cx="14" cy="14" r="1.5" fill="#0070f3"/>
+      </svg>
+    ),
     checklist: (
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
         <rect x="4" y="2" width="20" height="24" rx="2" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
@@ -99,7 +107,8 @@ export default function CoreAuditManagement() {
   }
 
   const subTiles = [
-    { icon: "planning", title: "Audit Planning & Scheduling", href: "#" },
+    { icon: "planning", title: "Audit Planning", href: "#" },
+    { icon: "scheduling", title: "Audit Scheduling", href: "#" },
     { icon: "checklist", title: "Audit Checklists", href: "#" },
     { icon: "findings", title: "Findings & Observations Log", href: "#" },
     { icon: "reports", title: "Audit Reports & Sign-off", href: "#" },
