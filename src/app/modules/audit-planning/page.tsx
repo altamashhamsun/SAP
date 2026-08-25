@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { User } from "@supabase/supabase-js";
 import React from "react";
 import Link from "next/link";
@@ -38,10 +38,8 @@ interface AuditPlan {
   audit_objective: string;
   audit_scope: string;
   audit_criteria: string;
-  operations_logistics: string;
   schedule_timetable: string;
   audit_methods: string;
-  personnel_duties: string;
   auditee_contacts: string;
   risk_factors: string;
   reporting_structure: string;
@@ -53,10 +51,8 @@ const FORM_FIELDS = [
   { key: "audit_objective", label: "Audit Objective", placeholder: "Define the purpose and goals of this audit..." },
   { key: "audit_scope", label: "Audit Scope", placeholder: "Define the boundaries and extent of the audit..." },
   { key: "audit_criteria", label: "Audit Criteria", placeholder: "ISO standards, regulations, procedures to audit against..." },
-  { key: "operations_logistics", label: "Operations & Logistics", placeholder: "Operational details and logistics for conducting the audit..." },
   { key: "schedule_timetable", label: "Schedule & Timetable", placeholder: "Day-by-day schedule, time slots, milestones..." },
   { key: "audit_methods", label: "Audit Methods", placeholder: "Interviews, document review, observations, sampling methods..." },
-  { key: "personnel_duties", label: "Personnel & Duties", placeholder: "Audit team members and their assigned roles..." },
   { key: "auditee_contacts", label: "Auditee Contacts", placeholder: "Key contacts from the department being audited..." },
   { key: "risk_factors", label: "Risk Factors", placeholder: "Potential risks, challenges, and mitigation strategies..." },
   { key: "reporting_structure", label: "Reporting Structure", placeholder: "How findings will be reported, follow-up process..." },
@@ -71,13 +67,16 @@ export default function AuditPlanning() {
   const [selectedAuditId, setSelectedAuditId] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<Record<string, string>>({});
-  const [editingPlan, setEditingPlan] = useState<AuditPlan | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<AuditPlan | null>(null);
 
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   const router = useRouter();
   const supabase = createClient();
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
 
   useEffect(() => {
     const getUser = async () => {
@@ -94,6 +93,12 @@ export default function AuditPlanning() {
       fetchPlans();
     }
   }, [user]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
 
   const fetchAudits = async () => {
     const { data } = await supabase
@@ -126,7 +131,7 @@ export default function AuditPlanning() {
 
   const getPlanForAudit = (auditId: string) => plans.find((p) => p.audit_id === auditId);
 
-  const startCreatePlan = () => {
+  const startCreatePlan = async () => {
     setError("");
     if (!selectedAuditId) {
       setError("Please select a scheduled audit first");
@@ -137,22 +142,38 @@ export default function AuditPlanning() {
       setError("A plan already exists for this audit. Edit it instead.");
       return;
     }
-    setEditingPlan(null);
-    setFormData({});
+
+    const { data, error: err } = await supabase
+      .from("audit_plans")
+      .insert({ audit_id: selectedAuditId })
+      .select()
+      .single();
+
+    if (err) { setError(err.message); return; }
+
+    setCurrentPlan(data as AuditPlan);
+    setFormData({
+      audit_objective: "",
+      audit_scope: "",
+      audit_criteria: "",
+      schedule_timetable: "",
+      audit_methods: "",
+      auditee_contacts: "",
+      risk_factors: "",
+      reporting_structure: "",
+    });
     setShowForm(true);
   };
 
   const startEditPlan = (plan: AuditPlan) => {
-    setEditingPlan(plan);
+    setCurrentPlan(plan);
     setSelectedAuditId(plan.audit_id);
     setFormData({
       audit_objective: plan.audit_objective,
       audit_scope: plan.audit_scope,
       audit_criteria: plan.audit_criteria,
-      operations_logistics: plan.operations_logistics,
       schedule_timetable: plan.schedule_timetable,
       audit_methods: plan.audit_methods,
-      personnel_duties: plan.personnel_duties,
       auditee_contacts: plan.auditee_contacts,
       risk_factors: plan.risk_factors,
       reporting_structure: plan.reporting_structure,
@@ -160,44 +181,43 @@ export default function AuditPlanning() {
     setShowForm(true);
   };
 
-  const savePlan = async () => {
-    setError("");
-    for (const field of FORM_FIELDS) {
-      if (!formData[field.key]?.trim()) {
-        setError(`${field.label} is required`);
-        return;
-      }
+  const autosave = useCallback(async (data: Record<string, string>, planId: string) => {
+    setSaveStatus("saving");
+    const { error: err } = await supabase
+      .from("audit_plans")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("id", planId);
+    if (err) {
+      setSaveStatus("idle");
+      return;
     }
-
-    if (editingPlan) {
-      const { error: err } = await supabase
-        .from("audit_plans")
-        .update({ ...formData, updated_at: new Date().toISOString() })
-        .eq("id", editingPlan.id);
-      if (err) { setError(err.message); return; }
-      setSuccess("Audit plan updated successfully!");
-    } else {
-      const { error: err } = await supabase
-        .from("audit_plans")
-        .insert({ audit_id: selectedAuditId, ...formData });
-      if (err) { setError(err.message); return; }
-      setSuccess("Audit plan created successfully!");
-    }
-    setShowForm(false);
-    setEditingPlan(null);
-    setFormData({});
+    setSaveStatus("saved");
     fetchPlans();
-    setTimeout(() => setSuccess(""), 2000);
+    setTimeout(() => setSaveStatus("idle"), 1500);
+  }, [supabase]);
+
+  const updateField = (key: string, value: string) => {
+    const newData = { ...formDataRef.current, [key]: value };
+    setFormData(newData);
+    formDataRef.current = newData;
+
+    if (!currentPlan) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      autosave(newData, currentPlan.id);
+    }, 800);
   };
 
   const deletePlan = async (id: string) => {
     if (!confirm("Delete this audit plan?")) return;
     await supabase.from("audit_plans").delete().eq("id", id);
+    if (showForm && currentPlan?.id === id) {
+      setShowForm(false);
+      setCurrentPlan(null);
+      setFormData({});
+    }
     fetchPlans();
-  };
-
-  const updateField = (key: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
   const selectedAudit = audits.find((a) => a.id === selectedAuditId);
@@ -254,7 +274,6 @@ export default function AuditPlanning() {
 
       <div className="sap-dashboard-content">
         {error && <div className="sap-error-message" style={{ marginBottom: "1rem" }}><span>{error}</span></div>}
-        {success && <div className="sap-success-message" style={{ marginBottom: "1rem" }}><span>{success}</span></div>}
 
         {!showForm && (
           <div className="sap-plan-select-section">
@@ -291,12 +310,16 @@ export default function AuditPlanning() {
         {showForm && (
           <div className="sap-plan-form-section">
             <div className="sap-plan-form-header">
-              <h3>{editingPlan ? "Edit Audit Plan" : "Create Audit Plan"}</h3>
+              <h3>Edit Audit Plan</h3>
               {selectedAudit && (
                 <span className="sap-plan-audit-tag">
                   {selectedAudit.branches?.code} — {selectedAudit.departments?.name} ({selectedAudit.start_date} to {selectedAudit.end_date})
                 </span>
               )}
+              <span className={`sap-autosave-status ${saveStatus}`}>
+                {saveStatus === "saving" && "Saving..."}
+                {saveStatus === "saved" && "Saved"}
+              </span>
             </div>
             <div className="sap-plan-form-grid">
               {FORM_FIELDS.map((field) => (
@@ -313,11 +336,8 @@ export default function AuditPlanning() {
               ))}
             </div>
             <div className="sap-form-actions">
-              <button className="sap-login-button" onClick={savePlan}>
-                {editingPlan ? "Update Plan" : "Save Plan"}
-              </button>
-              <button className="sap-cancel-btn" onClick={() => { setShowForm(false); setEditingPlan(null); setFormData({}); }}>
-                Cancel
+              <button className="sap-cancel-btn" onClick={() => { setShowForm(false); setCurrentPlan(null); setFormData({}); }}>
+                Close
               </button>
             </div>
           </div>
