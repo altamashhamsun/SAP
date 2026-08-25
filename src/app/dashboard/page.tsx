@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import React from "react";
+import Link from "next/link";
 
 function QacIcon({ type }: { type: string }) {
   const icons: Record<string, React.JSX.Element> = {
@@ -146,16 +147,16 @@ export default function Dashboard() {
     : "N/A";
 
   const tiles = [
-    { icon: "audit", title: "Core Audit Management" },
-    { icon: "ncr", title: "Non-Conformance & Corrective Action" },
-    { icon: "compliance", title: "Compliance Tracking" },
-    { icon: "document", title: "Document Control" },
-    { icon: "risk", title: "Risk Management" },
-    { icon: "people", title: "People & Training" },
-    { icon: "supplier", title: "Supplier/Vendor Quality" },
-    { icon: "operational", title: "Operational Add-ons" },
-    { icon: "reporting", title: "Reporting & Analytics" },
-    { icon: "admin", title: "System/Admin" },
+    { icon: "audit", title: "Core Audit Management", href: "/modules/core-audit-management" },
+    { icon: "ncr", title: "Non-Conformance & Corrective Action", href: "#" },
+    { icon: "compliance", title: "Compliance Tracking", href: "#" },
+    { icon: "document", title: "Document Control", href: "#" },
+    { icon: "risk", title: "Risk Management", href: "#" },
+    { icon: "people", title: "People & Training", href: "#" },
+    { icon: "supplier", title: "Supplier/Vendor Quality", href: "#" },
+    { icon: "operational", title: "Operational Add-ons", href: "#" },
+    { icon: "reporting", title: "Reporting & Analytics", href: "#" },
+    { icon: "admin", title: "System/Admin", href: "#" },
   ];
 
   return (
@@ -187,14 +188,14 @@ export default function Dashboard() {
       <div className="sap-dashboard-content">
         <div className="sap-tiles-grid">
           {tiles.map((tile, i) => (
-            <div key={i} className="sap-tile">
+            <Link key={i} href={tile.href} className="sap-tile">
               <div className="sap-tile-icon">
                 <QacIcon type={tile.icon} />
               </div>
               <div className="sap-tile-body">
                 <h3>{tile.title}</h3>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
