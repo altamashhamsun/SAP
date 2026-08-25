@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
+import dynamic from "next/dynamic";
+
+const Tile3D = dynamic(() => import("@/components/Tile3D"), { ssr: false });
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -58,16 +61,16 @@ export default function Dashboard() {
     : "N/A";
 
   const tiles = [
-    { icon: "📋", title: "Core Audit Management", desc: "Plan, schedule, and execute quality audits", color: "#e6f2ff" },
-    { icon: "⚠️", title: "Non-Conformance & Corrective Action", desc: "Track NCRs, root cause analysis, and CAPA", color: "#fff2e6" },
-    { icon: "✅", title: "Compliance Tracking", desc: "Monitor regulatory and internal compliance", color: "#e6ffe6" },
-    { icon: "📄", title: "Document Control", desc: "Manage SOPs, policies, and revisions", color: "#f5f0ff" },
-    { icon: "🛡️", title: "Risk Management", desc: "Identify, assess, and mitigate risks", color: "#ffe6e6" },
-    { icon: "👥", title: "People & Training", desc: "Track training records and certifications", color: "#e6ffff" },
-    { icon: "🏭", title: "Supplier/Vendor Quality", desc: "Evaluate and monitor supplier performance", color: "#fffde6" },
-    { icon: "⚙️", title: "Operational Add-ons", desc: "Industry-specific modules and extensions", color: "#f0f0f0" },
-    { icon: "📊", title: "Reporting & Analytics", desc: "Dashboards, KPIs, and trend analysis", color: "#e6f9e6" },
-    { icon: "🔧", title: "System/Admin", desc: "Users, roles, and system configuration", color: "#f5f5f5" },
+    { icon: "📋", title: "Core Audit Management", desc: "Plan, schedule, and execute quality audits", color: "#4a90d9" },
+    { icon: "⚠️", title: "Non-Conformance & Corrective Action", desc: "Track NCRs, root cause analysis, and CAPA", color: "#d94a4a" },
+    { icon: "✅", title: "Compliance Tracking", desc: "Monitor regulatory and internal compliance", color: "#4ad94a" },
+    { icon: "📄", title: "Document Control", desc: "Manage SOPs, policies, and revisions", color: "#9b4ad9" },
+    { icon: "🛡️", title: "Risk Management", desc: "Identify, assess, and mitigate risks", color: "#d97a4a" },
+    { icon: "👥", title: "People & Training", desc: "Track training records and certifications", color: "#4ad9d9" },
+    { icon: "🏭", title: "Supplier/Vendor Quality", desc: "Evaluate and monitor supplier performance", color: "#d9d94a" },
+    { icon: "⚙️", title: "Operational Add-ons", desc: "Industry-specific modules and extensions", color: "#808080" },
+    { icon: "📊", title: "Reporting & Analytics", desc: "Dashboards, KPIs, and trend analysis", color: "#4ad97a" },
+    { icon: "🔧", title: "System/Admin", desc: "Users, roles, and system configuration", color: "#6b7b8d" },
   ];
 
   return (
@@ -102,15 +105,13 @@ export default function Dashboard() {
       <div className="sap-dashboard-content">
         <div className="sap-tiles-grid">
           {tiles.map((tile, i) => (
-            <div key={i} className="sap-tile" style={{ borderTop: `3px solid ${tile.color.replace('e6', '99c2e6').replace('ff', 'cc9999').replace('f5', 'b3b3b3').replace('f0', 'b3b3b3')}` }}>
-              <div className="sap-tile-icon" style={{ background: tile.color }}>
-                <span>{tile.icon}</span>
-              </div>
-              <div className="sap-tile-body">
-                <h3>{tile.title}</h3>
-                <p>{tile.desc}</p>
-              </div>
-            </div>
+            <Tile3D
+              key={i}
+              emoji={tile.icon}
+              title={tile.title}
+              desc={tile.desc}
+              color={tile.color}
+            />
           ))}
         </div>
       </div>
