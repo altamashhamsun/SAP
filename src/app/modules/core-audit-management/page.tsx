@@ -107,7 +107,7 @@ export default function CoreAuditManagement() {
   }
 
   const subTiles = [
-    { icon: "planning", title: "Audit Planning", href: "#" },
+    { icon: "planning", title: "Audit Planning", href: "/modules/audit-planning" },
     { icon: "scheduling", title: "Audit Scheduling", href: "/modules/audit-scheduling" },
     { icon: "checklist", title: "Audit Checklists", href: "#" },
     { icon: "findings", title: "Findings & Observations Log", href: "#" },

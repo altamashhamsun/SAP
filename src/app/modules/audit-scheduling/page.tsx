@@ -48,7 +48,7 @@ export default function AuditScheduling() {
   const [rangeEnd, setRangeEnd] = useState<string | null>(null);
 
   const [selectedBranch, setSelectedBranch] = useState("");
-  const [selectedDept, setSelectedDept] = useState("");
+  const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
   const [objective, setObjective] = useState("");
 
   const [editAudit, setEditAudit] = useState<Audit | null>(null);
@@ -107,6 +107,20 @@ export default function AuditScheduling() {
     [departments, selectedBranch]
   );
 
+  const toggleDept = (deptId: string) => {
+    setSelectedDepts((prev) =>
+      prev.includes(deptId) ? prev.filter((id) => id !== deptId) : [...prev, deptId]
+    );
+  };
+
+  const selectAllDepts = () => {
+    setSelectedDepts(filteredDepts.map((d) => d.id));
+  };
+
+  const clearAllDepts = () => {
+    setSelectedDepts([]);
+  };
+
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   };
@@ -160,8 +174,8 @@ export default function AuditScheduling() {
       setError("Please select a branch");
       return;
     }
-    if (!selectedDept) {
-      setError("Please select a department");
+    if (selectedDepts.length === 0) {
+      setError("Please select at least one department");
       return;
     }
     if (!objective.trim()) {
@@ -169,22 +183,23 @@ export default function AuditScheduling() {
       return;
     }
 
-    const { error: err } = await supabase.from("audits").insert({
+    const inserts = selectedDepts.map((deptId) => ({
       branch_id: selectedBranch,
-      department_id: selectedDept,
+      department_id: deptId,
       objective: objective.trim(),
       start_date: rangeStart,
       end_date: rangeEnd,
-    });
+    }));
 
+    const { error: err } = await supabase.from("audits").insert(inserts);
     if (err) { setError(err.message); return; }
 
-    setSuccess("Audit scheduled successfully!");
+    setSuccess(`${selectedDepts.length} audit(s) scheduled successfully!`);
     setRangeStart(null);
     setRangeEnd(null);
     setSelectingRange(false);
     setSelectedBranch("");
-    setSelectedDept("");
+    setSelectedDepts([]);
     setObjective("");
     fetchAudits();
     setTimeout(() => setSuccess(""), 2000);
@@ -257,16 +272,6 @@ export default function AuditScheduling() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
-  const getBranchName = (audit: Audit) => {
-    if (audit.branches) return `${audit.branches.code} - ${audit.branches.name}`;
-    return audit.branch_id;
-  };
-
-  const getDeptName = (audit: Audit) => {
-    if (audit.departments) return `${audit.departments.code} - ${audit.departments.name}`;
-    return audit.department_id;
-  };
-
   if (loading) {
     return (
       <div className="sap-login-page">
@@ -308,11 +313,11 @@ export default function AuditScheduling() {
       </div>
 
       <div className="sap-module-header">
-        <Link href="/dashboard" className="sap-back-link">
+        <Link href="/modules/core-audit-management" className="sap-back-link">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path d="M13 4l-6 6 6 6" stroke="#0070f3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          Back to Dashboard
+          Back to Core Audit Management
         </Link>
         <h1>Audit Scheduling</h1>
       </div>
@@ -384,7 +389,7 @@ export default function AuditScheduling() {
               <select
                 className="sap-field-input"
                 value={selectedBranch}
-                onChange={(e) => { setSelectedBranch(e.target.value); setSelectedDept(""); }}
+                onChange={(e) => { setSelectedBranch(e.target.value); setSelectedDepts([]); }}
               >
                 <option value="">Select branch...</option>
                 {branches.map((b) => (
@@ -393,18 +398,32 @@ export default function AuditScheduling() {
               </select>
             </div>
             <div className="sap-field-group">
-              <label className="sap-field-label">Department</label>
-              <select
-                className="sap-field-input"
-                value={selectedDept}
-                onChange={(e) => setSelectedDept(e.target.value)}
-                disabled={!selectedBranch}
-              >
-                <option value="">Select department...</option>
+              <label className="sap-field-label">
+                Departments
+                {filteredDepts.length > 0 && (
+                  <span className="sap-dept-select-actions">
+                    <button type="button" onClick={selectAllDepts}>Select All</button>
+                    <button type="button" onClick={clearAllDepts}>Clear</button>
+                  </span>
+                )}
+              </label>
+              <div className="sap-dept-checkboxes">
+                {filteredDepts.length === 0 && (
+                  <p className="sap-empty-msg" style={{ padding: "0.5rem" }}>
+                    {selectedBranch ? "No departments in this branch" : "Select a branch first"}
+                  </p>
+                )}
                 {filteredDepts.map((d) => (
-                  <option key={d.id} value={d.id}>{d.code} — {d.name}</option>
+                  <label key={d.id} className="sap-checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={selectedDepts.includes(d.id)}
+                      onChange={() => toggleDept(d.id)}
+                    />
+                    <span className="sap-checkbox-label">{d.code} — {d.name}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
             <div className="sap-field-group">
               <label className="sap-field-label">Audit Objective</label>
@@ -417,7 +436,7 @@ export default function AuditScheduling() {
               />
             </div>
             <button className="sap-login-button" onClick={submitAudit}>
-              Schedule Audit
+              Schedule Audit {selectedDepts.length > 0 && `(${selectedDepts.length})`}
             </button>
           </div>
         </div>
@@ -426,7 +445,7 @@ export default function AuditScheduling() {
         <div className="sap-audits-table-section">
           <h3>Scheduled Audits ({audits.length})</h3>
           {audits.length === 0 ? (
-            <p className="sap-empty-msg">No audits scheduled yet. Select dates on the calendar and fill the form above.</p>
+            <p className="sap-empty-msg">No audits scheduled yet.</p>
           ) : (
             <div className="sap-table-wrap">
               <table className="sap-table">

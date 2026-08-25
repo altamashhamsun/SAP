@@ -438,6 +438,10 @@ body {
   .sap-schedule-layout {
     grid-template-columns: 1fr;
   }
+
+  .sap-plan-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ==================== MODULE PAGES ==================== */
@@ -868,6 +872,65 @@ body {
   margin-bottom: 1rem;
 }
 
+/* Department checkboxes */
+.sap-dept-checkboxes {
+  border: 1px solid var(--sap-border);
+  border-radius: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.sap-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.sap-checkbox-item:last-child {
+  border-bottom: none;
+}
+
+.sap-checkbox-item:hover {
+  background: var(--sap-light-blue);
+}
+
+.sap-checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sap-blue);
+  cursor: pointer;
+}
+
+.sap-checkbox-label {
+  font-size: 0.85rem;
+  color: var(--sap-text);
+}
+
+.sap-dept-select-actions {
+  font-weight: 400;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+.sap-dept-select-actions button {
+  background: none;
+  border: none;
+  color: var(--sap-blue);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0 0.25rem;
+  text-decoration: underline;
+}
+
+.sap-dept-select-actions button:hover {
+  color: var(--sap-dark-blue);
+}
+
 .sap-textarea {
   resize: vertical;
   min-height: 80px;
@@ -999,6 +1062,145 @@ body {
   font-size: 0.8rem;
   color: var(--sap-gray);
   margin-bottom: 0.75rem;
+}
+
+/* Audit Planning */
+.sap-plan-select-section {
+  margin-bottom: 1.5rem;
+}
+
+.sap-plan-select-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 1.5rem;
+  max-width: 700px;
+}
+
+.sap-plan-select-card h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.sap-audit-preview {
+  background: #f9fbff;
+  border: 1px solid #d6e4ff;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.sap-preview-row {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.2rem 0;
+}
+
+.sap-preview-row span {
+  color: var(--sap-gray);
+  min-width: 100px;
+}
+
+.sap-plan-form-section {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.sap-plan-form-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.sap-plan-form-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.sap-plan-audit-tag {
+  font-size: 0.8rem;
+  background: var(--sap-light-blue);
+  color: var(--sap-dark-blue);
+  padding: 0.3rem 0.75rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.sap-plan-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.sap-plan-field .sap-textarea {
+  min-height: 100px;
+}
+
+.sap-plans-list-section {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.sap-plans-list-section h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.sap-plans-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sap-plan-card {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 1rem;
+  transition: border-color 0.15s;
+}
+
+.sap-plan-card:hover {
+  border-color: #ccc;
+}
+
+.sap-plan-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.sap-plan-card-header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sap-plan-card-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.sap-plan-card-dates {
+  font-size: 0.8rem;
+  color: var(--sap-gray);
+  margin-bottom: 0.4rem;
+}
+
+.sap-plan-card-summary {
+  font-size: 0.82rem;
+  color: #666;
+  line-height: 1.4;
 }
 
 /* ==================== EXISTING STYLES ==================== */
