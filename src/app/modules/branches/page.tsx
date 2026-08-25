@@ -18,7 +18,41 @@ interface Department {
   branch_id: string;
   name: string;
   code: string;
+  standards: string;
 }
+
+const DEPT_OPTIONS = [
+  { name: "General Management", code: "GM", standards: "ISO 9001 — Quality Management Systems" },
+  { name: "Front Desk", code: "FD", standards: "ISO 9001, ISO 22483 — Quality Management Systems; Tourism and related services — Hotels — Service requirements" },
+  { name: "Reservations", code: "RES", standards: "ISO 9001, ISO 22483 — Quality Management Systems; Tourism and related services — Hotels — Service requirements" },
+  { name: "Guest Relations", code: "GR", standards: "ISO 9001, ISO 22483 — Quality Management Systems; Tourism and related services — Hotels — Service requirements" },
+  { name: "Housekeeping", code: "HK", standards: "ISO 9001, ISO 22483, ISO 45001 — Quality Management Systems; Hotels — Service requirements; Occupational Health & Safety Management Systems" },
+  { name: "Laundry", code: "LND", standards: "ISO 9001, ISO 45001 — Quality Management Systems; Occupational Health & Safety Management Systems" },
+  { name: "Restaurant / F&B", code: "FNB", standards: "ISO 9001, ISO 22000, ISO 22483 — Quality Management Systems; Food Safety Management Systems; Hotels — Service requirements" },
+  { name: "Kitchen", code: "KIT", standards: "ISO 22000, ISO 9001, ISO 45001 — Food Safety Management Systems; Quality Management Systems; Occupational Health & Safety Management Systems" },
+  { name: "Café", code: "CAF", standards: "ISO 22000, ISO 9001 — Food Safety Management Systems; Quality Management Systems" },
+  { name: "Banquet & Events", code: "BNE", standards: "ISO 9001, ISO 22000, ISO 22483 — Quality Management Systems; Food Safety Management Systems; Hotels — Service requirements" },
+  { name: "Room Service", code: "RS", standards: "ISO 22000, ISO 9001, ISO 22483 — Food Safety Management Systems; Quality Management Systems; Hotels — Service requirements" },
+  { name: "Stewarding", code: "STE", standards: "ISO 22000, ISO 45001 — Food Safety Management Systems; Occupational Health & Safety Management Systems" },
+  { name: "Sales & Marketing", code: "SM", standards: "ISO 9001 — Quality Management Systems" },
+  { name: "Finance & Accounts", code: "FA", standards: "ISO 9001 — Quality Management Systems" },
+  { name: "Human Resources", code: "HR", standards: "ISO 9001, ISO 45001 — Quality Management Systems; Occupational Health & Safety Management Systems" },
+  { name: "Procurement / Purchasing", code: "PROC", standards: "ISO 9001, ISO 22000 — Quality Management Systems; Food Safety Management Systems" },
+  { name: "Supply Chain", code: "SC", standards: "ISO 9001, ISO 22000 — Quality Management Systems; Food Safety Management Systems" },
+  { name: "Stores / Warehouse", code: "STR", standards: "ISO 9001, ISO 22000, ISO 45001 — Quality Management Systems; Food Safety Management Systems; Occupational Health & Safety Management Systems" },
+  { name: "Engineering / Maintenance", code: "ENG", standards: "ISO 9001, ISO 45001 — Quality Management Systems; Occupational Health & Safety Management Systems" },
+  { name: "IT", code: "IT", standards: "ISO 9001, ISO 27001 — Quality Management Systems; Information Security Management Systems" },
+  { name: "Security", code: "SEC", standards: "ISO 45001, ISO 9001 — Occupational Health & Safety Management Systems; Quality Management Systems" },
+  { name: "HSE", code: "HSE", standards: "ISO 45001, ISO 14001 — Occupational Health & Safety Management Systems; Environmental Management Systems" },
+  { name: "Quality Assurance", code: "QA", standards: "ISO 9001 — Quality Management Systems" },
+  { name: "Compliance", code: "CMP", standards: "ISO 9001, ISO 45001, ISO 22000 — Quality Management Systems; Occupational Health & Safety Management Systems; Food Safety Management Systems" },
+  { name: "Food Safety", code: "FS", standards: "ISO 22000 — Food Safety Management Systems" },
+  { name: "Training & Development", code: "TD", standards: "ISO 9001, ISO 45001, ISO 22000 — Quality Management Systems; Occupational Health & Safety Management Systems; Food Safety Management Systems" },
+  { name: "Spa / Wellness", code: "SPA", standards: "ISO 9001, ISO 45001 — Quality Management Systems; Occupational Health & Safety Management Systems" },
+  { name: "Transportation / Parking", code: "TP", standards: "ISO 9001, ISO 45001 — Quality Management Systems; Occupational Health & Safety Management Systems" },
+  { name: "Gardening / Landscaping", code: "GL", standards: "ISO 14001, ISO 45001 — Environmental Management Systems; Occupational Health & Safety Management Systems" },
+  { name: "Waste Management", code: "WM", standards: "ISO 14001, ISO 45001 — Environmental Management Systems; Occupational Health & Safety Management Systems" },
+];
 
 export default function BranchesModule() {
   const [user, setUser] = useState<User | null>(null);
@@ -34,8 +68,10 @@ export default function BranchesModule() {
 
   const [showDeptForm, setShowDeptForm] = useState(false);
   const [editDept, setEditDept] = useState<Department | null>(null);
+  const [deptSelect, setDeptSelect] = useState("");
   const [deptName, setDeptName] = useState("");
   const [deptCode, setDeptCode] = useState("");
+  const [deptStandards, setDeptStandards] = useState("");
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -84,11 +120,29 @@ export default function BranchesModule() {
   };
 
   const resetDeptForm = () => {
+    setDeptSelect("");
     setDeptName("");
     setDeptCode("");
+    setDeptStandards("");
     setEditDept(null);
     setShowDeptForm(false);
     setError("");
+  };
+
+  const handleDeptSelectChange = (value: string) => {
+    setDeptSelect(value);
+    if (value) {
+      const opt = DEPT_OPTIONS.find((o) => o.name === value);
+      if (opt) {
+        setDeptName(opt.name);
+        setDeptCode(opt.code);
+        setDeptStandards(opt.standards);
+      }
+    } else {
+      setDeptName("");
+      setDeptCode("");
+      setDeptStandards("");
+    }
   };
 
   const saveBranch = async () => {
@@ -143,14 +197,14 @@ export default function BranchesModule() {
     if (editDept) {
       const { error: err } = await supabase
         .from("departments")
-        .update({ name: deptName.trim(), code: deptCode.trim().toUpperCase() })
+        .update({ name: deptName.trim(), code: deptCode.trim().toUpperCase(), standards: deptStandards.trim() })
         .eq("id", editDept.id);
       if (err) { setError(err.message); return; }
       setSuccess("Department updated");
     } else {
       const { error: err } = await supabase
         .from("departments")
-        .insert({ branch_id: selectedBranch.id, name: deptName.trim(), code: deptCode.trim().toUpperCase() });
+        .insert({ branch_id: selectedBranch.id, name: deptName.trim(), code: deptCode.trim().toUpperCase(), standards: deptStandards.trim() });
       if (err) { setError(err.message); return; }
       setSuccess("Department created");
     }
@@ -167,8 +221,11 @@ export default function BranchesModule() {
 
   const startEditDept = (dept: Department) => {
     setEditDept(dept);
+    const matchOpt = DEPT_OPTIONS.find((o) => o.name === dept.name);
+    setDeptSelect(matchOpt ? dept.name : "");
     setDeptName(dept.name);
     setDeptCode(dept.code);
+    setDeptStandards(dept.standards || "");
     setShowDeptForm(true);
   };
 
@@ -319,21 +376,31 @@ export default function BranchesModule() {
                   <div className="sap-form-card">
                     <h3>{editDept ? "Edit Department" : "New Department"}</h3>
                     <div className="sap-field-group">
-                      <label className="sap-field-label">Department Name</label>
-                      <input
+                      <label className="sap-field-label">Department</label>
+                      <select
                         className="sap-field-input"
-                        value={deptName}
-                        onChange={(e) => setDeptName(e.target.value)}
-                        placeholder="e.g. Quality Control"
-                      />
+                        value={deptSelect}
+                        onChange={(e) => handleDeptSelectChange(e.target.value)}
+                      >
+                        <option value="">Select department...</option>
+                        {DEPT_OPTIONS.map((opt) => (
+                          <option key={opt.name} value={opt.name}>{opt.name}</option>
+                        ))}
+                      </select>
                     </div>
+                    {deptStandards && (
+                      <div className="sap-field-group">
+                        <label className="sap-field-label">Applicable Standards</label>
+                        <div className="sap-standards-display">{deptStandards}</div>
+                      </div>
+                    )}
                     <div className="sap-field-group">
                       <label className="sap-field-label">Department Code</label>
                       <input
                         className="sap-field-input"
                         value={deptCode}
                         onChange={(e) => setDeptCode(e.target.value)}
-                        placeholder="e.g. QC01"
+                        placeholder="Auto-filled or custom"
                         maxLength={10}
                       />
                     </div>
@@ -354,7 +421,12 @@ export default function BranchesModule() {
                     <div key={dept.id} className="sap-dept-item">
                       <div className="sap-dept-info">
                         <span className="sap-dept-code">{dept.code}</span>
-                        <span className="sap-dept-name">{dept.name}</span>
+                        <div className="sap-dept-details">
+                          <span className="sap-dept-name">{dept.name}</span>
+                          {dept.standards && (
+                            <span className="sap-dept-standards">{dept.standards}</span>
+                          )}
+                        </div>
                       </div>
                       <div className="sap-dept-actions">
                         <button className="sap-icon-btn" onClick={() => startEditDept(dept)} title="Edit">

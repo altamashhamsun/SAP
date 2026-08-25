@@ -654,8 +654,14 @@ body {
 
 .sap-dept-info {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
+}
+
+.sap-dept-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .sap-dept-code {
@@ -665,11 +671,29 @@ body {
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .sap-dept-name {
   font-weight: 500;
   font-size: 0.9rem;
+}
+
+.sap-dept-standards {
+  font-size: 0.75rem;
+  color: var(--sap-gray);
+  line-height: 1.4;
+}
+
+.sap-standards-display {
+  background: #f0f7ff;
+  border: 1px solid #d6e4ff;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--sap-dark-blue);
+  line-height: 1.4;
 }
 
 .sap-empty-state {
