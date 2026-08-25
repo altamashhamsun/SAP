@@ -3,7 +3,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { User } from "@supabase/supabase-js";
 
 export default function Dashboard() {
@@ -25,14 +24,25 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/");
+    router.push("/login");
     router.refresh();
   };
 
   if (loading) {
     return (
-      <div className="container">
-        <p>Loading...</p>
+      <div className="sap-login-page">
+        <div className="sap-top-bar">
+          <div className="sap-top-bar-left">
+            <svg className="sap-logo" viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg">
+              <rect x="0" y="5" width="30" height="30" rx="4" fill="#fff" />
+              <text x="8" y="27" fontFamily="Arial, sans-serif" fontSize="18" fontWeight="bold" fill="#0070f3">Q</text>
+              <text x="40" y="28" fontFamily="Arial, sans-serif" fontSize="22" fontWeight="bold" fill="#fff">QAC</text>
+            </svg>
+          </div>
+        </div>
+        <div className="sap-login-center">
+          <div className="sap-loading-spinner" style={{ width: 40, height: 40, borderWidth: 3 }}></div>
+        </div>
       </div>
     );
   }
@@ -42,37 +52,76 @@ export default function Dashboard() {
     return null;
   }
 
+  const displayName = user.email?.split("@")[0] || "User";
+  const loginTime = user.last_sign_in_at
+    ? new Date(user.last_sign_in_at).toLocaleString()
+    : "N/A";
+
   return (
-    <div className="container">
-      <nav>
-        <h1>SAP</h1>
-        <div>
-          <Link href="/" style={{ marginRight: "1rem" }}>
-            Home
-          </Link>
-          <button onClick={handleLogout} className="btn btn-secondary">
-            Logout
-          </button>
+    <div className="sap-dashboard">
+      {/* Top Bar */}
+      <div className="sap-top-bar" style={{ justifyContent: "space-between" }}>
+        <div className="sap-top-bar-left">
+          <svg className="sap-logo" viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="5" width="30" height="30" rx="4" fill="#fff" />
+            <text x="8" y="27" fontFamily="Arial, sans-serif" fontSize="18" fontWeight="bold" fill="#0070f3">Q</text>
+            <text x="40" y="28" fontFamily="Arial, sans-serif" fontSize="22" fontWeight="bold" fill="#fff">QAC</text>
+          </svg>
         </div>
-      </nav>
+        <div className="sap-top-bar-right">
+          <span className="sap-top-user">{user.email}</span>
+          <button onClick={handleLogout} className="sap-logout-btn">Sign Out</button>
+        </div>
+      </div>
 
-      <main>
-        <h2>Dashboard</h2>
-        <div className="card">
-          <h3>Welcome, {user.email}</h3>
-          <p>User ID: {user.id}</p>
-          <p>Last Sign In: {new Date(user.last_sign_in_at!).toLocaleString()}</p>
+      {/* Main Content */}
+      <div className="sap-dashboard-content">
+        {/* Welcome Banner */}
+        <div className="sap-welcome-banner">
+          <div className="sap-welcome-text">
+            <h1>Welcome, {displayName}</h1>
+            <p>Quality Audit and Compliance Portal</p>
+          </div>
+          <div className="sap-welcome-time">
+            <span>Last login: {loginTime}</span>
+          </div>
         </div>
 
-        <div className="card" style={{ marginTop: "2rem" }}>
-          <h3>Quick Actions</h3>
-          <p>Connect your Supabase database to start managing data.</p>
-          <p style={{ marginTop: "1rem", color: "#666" }}>
-            The Supabase MCP server is now connected. You can query your database,
-            manage tables, and more through AI-assisted commands.
-          </p>
+        {/* Cards Grid */}
+        <div className="sap-dashboard-grid">
+          <div className="sap-dashboard-card">
+            <div className="sap-card-icon" style={{ background: "#e6f2ff" }}>
+              <span style={{ color: "#0070f3", fontSize: "1.5rem" }}>◈</span>
+            </div>
+            <h3>Audits</h3>
+            <p>Manage and track quality audits</p>
+          </div>
+
+          <div className="sap-dashboard-card">
+            <div className="sap-card-icon" style={{ background: "#e6ffe6" }}>
+              <span style={{ color: "#107c10", fontSize: "1.5rem" }}>◈</span>
+            </div>
+            <h3>Compliance</h3>
+            <p>Monitor compliance status</p>
+          </div>
+
+          <div className="sap-dashboard-card">
+            <div className="sap-card-icon" style={{ background: "#fff2e6" }}>
+              <span style={{ color: "#e97025", fontSize: "1.5rem" }}>◈</span>
+            </div>
+            <h3>Reports</h3>
+            <p>View and generate reports</p>
+          </div>
+
+          <div className="sap-dashboard-card">
+            <div className="sap-card-icon" style={{ background: "#f5f5f5" }}>
+              <span style={{ color: "#555", fontSize: "1.5rem" }}>◈</span>
+            </div>
+            <h3>Settings</h3>
+            <p>System configuration</p>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
