@@ -433,6 +433,11 @@ body {
   .sap-tiles-grid {
     grid-template-columns: 1fr;
   }
+
+  .sap-branches-layout,
+  .sap-schedule-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ==================== MODULE PAGES ==================== */
@@ -460,6 +465,488 @@ body {
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--sap-text);
+}
+
+/* Branches Module */
+.sap-branches-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  min-height: 60vh;
+}
+
+.sap-branches-panel,
+.sap-departments-panel {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.sap-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #eee;
+}
+
+.sap-panel-header h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.sap-add-btn {
+  background: var(--sap-blue);
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.sap-add-btn:hover {
+  background: var(--sap-dark-blue);
+}
+
+.sap-form-card {
+  background: #f9fbff;
+  border: 1px solid #d6e4ff;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sap-form-card h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  color: var(--sap-text);
+}
+
+.sap-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.sap-form-actions .sap-login-button {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.85rem;
+  margin-top: 0;
+}
+
+.sap-cancel-btn {
+  background: #f5f5f5;
+  color: var(--sap-gray);
+  border: 1px solid #ddd;
+  padding: 0.6rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.sap-cancel-btn:hover {
+  background: #eee;
+}
+
+.sap-branch-list,
+.sap-dept-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.sap-branch-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sap-branch-item:hover {
+  border-color: var(--sap-blue);
+  background: #f9fbff;
+}
+
+.sap-branch-item.active {
+  border-color: var(--sap-blue);
+  background: var(--sap-light-blue);
+}
+
+.sap-branch-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sap-branch-code {
+  background: var(--sap-blue);
+  color: #fff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.sap-branch-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.sap-branch-dept-count {
+  font-size: 0.75rem;
+  color: var(--sap-gray);
+}
+
+.sap-branch-actions,
+.sap-dept-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.sap-icon-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.sap-icon-btn:hover {
+  background: #f0f0f0;
+  border-color: #ddd;
+}
+
+.sap-icon-btn-danger:hover {
+  background: #fff2f2;
+  border-color: #ffcdd2;
+}
+
+.sap-dept-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.sap-dept-item:hover {
+  border-color: #ccc;
+}
+
+.sap-dept-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sap-dept-code {
+  background: #e6f2ff;
+  color: var(--sap-blue);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sap-dept-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.sap-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60%;
+  color: #aaa;
+  gap: 1rem;
+}
+
+.sap-empty-state p {
+  font-size: 0.9rem;
+}
+
+.sap-empty-msg {
+  color: #aaa;
+  font-size: 0.85rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+/* Audit Scheduling */
+.sap-schedule-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.sap-calendar-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.sap-cal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.sap-cal-header h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.sap-cal-nav {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.sap-cal-nav:hover {
+  background: var(--sap-light-blue);
+  border-color: var(--sap-blue);
+}
+
+.sap-cal-days-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.sap-cal-day-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--sap-gray);
+  padding: 0.35rem 0;
+}
+
+.sap-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.sap-cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.sap-cal-day:not(.empty):hover {
+  background: var(--sap-light-blue);
+}
+
+.sap-cal-day.empty {
+  cursor: default;
+}
+
+.sap-cal-day.today {
+  font-weight: 700;
+  color: var(--sap-blue);
+}
+
+.sap-cal-day.in-range {
+  background: var(--sap-blue);
+  color: #fff;
+  border-radius: 0;
+}
+
+.sap-cal-day.has-audit::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--sap-warning);
+}
+
+.sap-cal-legend {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--sap-gray);
+}
+
+.sap-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+
+.sap-legend-dot.today { background: var(--sap-blue); }
+.sap-legend-dot.selected { background: var(--sap-blue); }
+.sap-legend-dot.audit { background: var(--sap-warning); }
+
+.sap-cal-selection {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--sap-light-blue);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.sap-schedule-form-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.sap-schedule-form-card h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.sap-textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.sap-audits-table-section {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+.sap-audits-table-section h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.sap-table-wrap {
+  overflow-x: auto;
+}
+
+.sap-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sap-table th,
+.sap-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  font-size: 0.85rem;
+}
+
+.sap-table th {
+  font-weight: 600;
+  background: #f9fbff;
+  color: var(--sap-text);
+  white-space: nowrap;
+}
+
+.sap-branch-code-tag {
+  background: var(--sap-blue);
+  color: #fff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sap-inline-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sap-date-input {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.sap-inline-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.sap-action-btn {
+  background: none;
+  border: 1px solid #ddd;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sap-action-btn:hover {
+  background: #f5f5f5;
+}
+
+.sap-action-save {
+  background: var(--sap-blue);
+  color: #fff;
+  border-color: var(--sap-blue);
+}
+
+.sap-action-save:hover {
+  background: var(--sap-dark-blue);
+}
+
+.sap-action-cancel {
+  color: var(--sap-gray);
+}
+
+.sap-action-delete {
+  color: var(--sap-error);
+  border-color: #ffcdd2;
+}
+
+.sap-action-delete:hover {
+  background: #fff2f2;
 }
 
 /* ==================== EXISTING STYLES ==================== */

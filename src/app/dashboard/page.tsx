@@ -90,6 +90,14 @@ function QacIcon({ type }: { type: string }) {
         <path d="M21 13l1 1 2-2" stroke="#0070f3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
+    branches: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="3" y="3" width="10" height="10" rx="2" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
+        <rect x="15" y="3" width="10" height="10" rx="2" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
+        <rect x="3" y="15" width="10" height="10" rx="2" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
+        <rect x="15" y="15" width="10" height="10" rx="2" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
+      </svg>
+    ),
   };
   return icons[type] || null;
 }
@@ -154,6 +162,7 @@ export default function Dashboard() {
     { icon: "risk", title: "Risk Management", href: "#" },
     { icon: "people", title: "People & Training", href: "#" },
     { icon: "supplier", title: "Supplier/Vendor Quality", href: "#" },
+    { icon: "branches", title: "Branches & Departments", href: "/modules/branches" },
     { icon: "operational", title: "Operational Add-ons", href: "#" },
     { icon: "reporting", title: "Reporting & Analytics", href: "#" },
     { icon: "admin", title: "System/Admin", href: "#" },
