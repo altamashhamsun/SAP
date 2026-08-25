@@ -149,7 +149,11 @@ export default function AuditScheduling() {
   const submitAudit = async () => {
     setError("");
     if (!rangeStart || !rangeEnd) {
-      setError("Please select a date range on the calendar");
+      setError("Please enter start and end dates");
+      return;
+    }
+    if (rangeEnd < rangeStart) {
+      setError("End date must be after start date");
       return;
     }
     if (!selectedBranch) {
@@ -356,6 +360,25 @@ export default function AuditScheduling() {
           {/* Schedule Form */}
           <div className="sap-schedule-form-card">
             <h3>Schedule Audit</h3>
+            <div className="sap-field-group">
+              <label className="sap-field-label">Audit Duration</label>
+              <div className="sap-date-row">
+                <input
+                  type="date"
+                  className="sap-field-input"
+                  value={rangeStart || ""}
+                  onChange={(e) => { setRangeStart(e.target.value); setSelectingRange(false); }}
+                />
+                <span className="sap-date-sep">to</span>
+                <input
+                  type="date"
+                  className="sap-field-input"
+                  value={rangeEnd || ""}
+                  onChange={(e) => setRangeEnd(e.target.value)}
+                  min={rangeStart || ""}
+                />
+              </div>
+            </div>
             <div className="sap-field-group">
               <label className="sap-field-label">Branch</label>
               <select

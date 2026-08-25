@@ -874,6 +874,22 @@ body {
   font-family: inherit;
 }
 
+.sap-date-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sap-date-row .sap-field-input {
+  flex: 1;
+}
+
+.sap-date-sep {
+  color: var(--sap-gray);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 .sap-audits-table-section {
   background: #fff;
   border: 1px solid #e5e5e5;
