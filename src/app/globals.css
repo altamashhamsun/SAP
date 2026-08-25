@@ -973,6 +973,18 @@ body {
   background: #fff2f2;
 }
 
+/* Duplicate Form */
+.sap-dup-form {
+  border-color: #b3d4ff;
+  background: #f5faff;
+}
+
+.sap-dup-hint {
+  font-size: 0.8rem;
+  color: var(--sap-gray);
+  margin-bottom: 0.75rem;
+}
+
 /* ==================== EXISTING STYLES ==================== */
 
 .container {

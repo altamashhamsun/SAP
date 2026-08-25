@@ -73,6 +73,12 @@ export default function BranchesModule() {
   const [deptCode, setDeptCode] = useState("");
   const [deptStandards, setDeptStandards] = useState("");
 
+  const [showDupForm, setShowDupForm] = useState(false);
+  const [dupSource, setDupSource] = useState<Branch | null>(null);
+  const [dupName, setDupName] = useState("");
+  const [dupCode, setDupCode] = useState("");
+  const [dupLoading, setDupLoading] = useState(false);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -127,6 +133,59 @@ export default function BranchesModule() {
     setEditDept(null);
     setShowDeptForm(false);
     setError("");
+  };
+
+  const resetDupForm = () => {
+    setDupSource(null);
+    setDupName("");
+    setDupCode("");
+    setShowDupForm(false);
+    setDupLoading(false);
+    setError("");
+  };
+
+  const startDuplicate = (branch: Branch) => {
+    setDupSource(branch);
+    setDupName(branch.name + " (Copy)");
+    setDupCode("");
+    setShowDupForm(true);
+  };
+
+  const duplicateBranch = async () => {
+    if (!dupSource) return;
+    setError("");
+    if (!dupName.trim() || !dupCode.trim()) {
+      setError("New branch name and code are required");
+      return;
+    }
+
+    setDupLoading(true);
+
+    const { data: newBranch, error: branchErr } = await supabase
+      .from("branches")
+      .insert({ name: dupName.trim(), code: dupCode.trim().toUpperCase() })
+      .select()
+      .single();
+
+    if (branchErr) { setError(branchErr.message); setDupLoading(false); return; }
+
+    const srcDepts = getDeptsForBranch(dupSource.id);
+    if (srcDepts.length > 0) {
+      const newDepts = srcDepts.map((d) => ({
+        branch_id: newBranch.id,
+        name: d.name,
+        code: d.code,
+        standards: d.standards || "",
+      }));
+      const { error: deptErr } = await supabase.from("departments").insert(newDepts);
+      if (deptErr) { setError(deptErr.message); setDupLoading(false); return; }
+    }
+
+    setSuccess(`Branch "${dupName.trim()}" created with ${srcDepts.length} departments`);
+    resetDupForm();
+    fetchBranches();
+    fetchDepartments();
+    setTimeout(() => setSuccess(""), 2000);
   };
 
   const handleDeptSelectChange = (value: string) => {
@@ -330,6 +389,38 @@ export default function BranchesModule() {
               </div>
             )}
 
+            {showDupForm && (
+              <div className="sap-form-card sap-dup-form">
+                <h3>Duplicate Branch — {dupSource?.code}</h3>
+                <p className="sap-dup-hint">All {getDeptsForBranch(dupSource?.id || "").length} departments will be copied</p>
+                <div className="sap-field-group">
+                  <label className="sap-field-label">New Branch Name</label>
+                  <input
+                    className="sap-field-input"
+                    value={dupName}
+                    onChange={(e) => setDupName(e.target.value)}
+                    placeholder="e.g. Resort North"
+                  />
+                </div>
+                <div className="sap-field-group">
+                  <label className="sap-field-label">New Branch Code</label>
+                  <input
+                    className="sap-field-input"
+                    value={dupCode}
+                    onChange={(e) => setDupCode(e.target.value)}
+                    placeholder="e.g. BR02"
+                    maxLength={10}
+                  />
+                </div>
+                <div className="sap-form-actions">
+                  <button className="sap-login-button" onClick={duplicateBranch} disabled={dupLoading}>
+                    {dupLoading ? "Duplicating..." : "Duplicate"}
+                  </button>
+                  <button className="sap-cancel-btn" onClick={resetDupForm} disabled={dupLoading}>Cancel</button>
+                </div>
+              </div>
+            )}
+
             <div className="sap-branch-list">
               {branches.length === 0 && (
                 <p className="sap-empty-msg">No branches yet. Add one to get started.</p>
@@ -346,6 +437,9 @@ export default function BranchesModule() {
                     <span className="sap-branch-dept-count">{getDeptsForBranch(branch.id).length} depts</span>
                   </div>
                   <div className="sap-branch-actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="sap-icon-btn" onClick={() => startDuplicate(branch)} title="Duplicate">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="#0070f3" strokeWidth="1.5" fill="none"/><path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5" stroke="#0070f3" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                    </button>
                     <button className="sap-icon-btn" onClick={() => startEditBranch(branch)} title="Edit">
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="#0070f3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     </button>
