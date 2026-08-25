@@ -381,11 +381,12 @@ body {
   align-items: center;
   gap: 1rem;
   cursor: pointer;
-  transition: box-shadow 0.2s, transform 0.15s;
+  transition: all 0.25s ease;
 }
 
 .sap-tile:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  border-color: var(--sap-blue);
+  box-shadow: 0 4px 16px rgba(0, 112, 243, 0.2);
   transform: translateY(-2px);
 }
 
