@@ -57,6 +57,19 @@ export default function Dashboard() {
     ? new Date(user.last_sign_in_at).toLocaleString()
     : "N/A";
 
+  const tiles = [
+    { icon: "📋", title: "Core Audit Management", desc: "Plan, schedule, and execute quality audits", color: "#e6f2ff" },
+    { icon: "⚠️", title: "Non-Conformance & Corrective Action", desc: "Track NCRs, root cause analysis, and CAPA", color: "#fff2e6" },
+    { icon: "✅", title: "Compliance Tracking", desc: "Monitor regulatory and internal compliance", color: "#e6ffe6" },
+    { icon: "📄", title: "Document Control", desc: "Manage SOPs, policies, and revisions", color: "#f5f0ff" },
+    { icon: "🛡️", title: "Risk Management", desc: "Identify, assess, and mitigate risks", color: "#ffe6e6" },
+    { icon: "👥", title: "People & Training", desc: "Track training records and certifications", color: "#e6ffff" },
+    { icon: "🏭", title: "Supplier/Vendor Quality", desc: "Evaluate and monitor supplier performance", color: "#fffde6" },
+    { icon: "⚙️", title: "Operational Add-ons", desc: "Industry-specific modules and extensions", color: "#f0f0f0" },
+    { icon: "📊", title: "Reporting & Analytics", desc: "Dashboards, KPIs, and trend analysis", color: "#e6f9e6" },
+    { icon: "🔧", title: "System/Admin", desc: "Users, roles, and system configuration", color: "#f5f5f5" },
+  ];
+
   return (
     <div className="sap-dashboard">
       {/* Top Bar */}
@@ -74,52 +87,31 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="sap-dashboard-content">
-        {/* Welcome Banner */}
-        <div className="sap-welcome-banner">
-          <div className="sap-welcome-text">
-            <h1>Welcome, {displayName}</h1>
-            <p>Quality Audit and Compliance Portal</p>
-          </div>
-          <div className="sap-welcome-time">
-            <span>Last login: {loginTime}</span>
-          </div>
+      {/* Welcome Banner */}
+      <div className="sap-welcome-banner">
+        <div className="sap-welcome-text">
+          <h1>Welcome, {displayName}</h1>
+          <p>Quality Audit and Compliance Portal</p>
         </div>
+        <div className="sap-welcome-time">
+          <span>Last login: {loginTime}</span>
+        </div>
+      </div>
 
-        {/* Cards Grid */}
-        <div className="sap-dashboard-grid">
-          <div className="sap-dashboard-card">
-            <div className="sap-card-icon" style={{ background: "#e6f2ff" }}>
-              <span style={{ color: "#0070f3", fontSize: "1.5rem" }}>◈</span>
+      {/* Tiles Grid */}
+      <div className="sap-dashboard-content">
+        <div className="sap-tiles-grid">
+          {tiles.map((tile, i) => (
+            <div key={i} className="sap-tile" style={{ borderTop: `3px solid ${tile.color.replace('e6', '99c2e6').replace('ff', 'cc9999').replace('f5', 'b3b3b3').replace('f0', 'b3b3b3')}` }}>
+              <div className="sap-tile-icon" style={{ background: tile.color }}>
+                <span>{tile.icon}</span>
+              </div>
+              <div className="sap-tile-body">
+                <h3>{tile.title}</h3>
+                <p>{tile.desc}</p>
+              </div>
             </div>
-            <h3>Audits</h3>
-            <p>Manage and track quality audits</p>
-          </div>
-
-          <div className="sap-dashboard-card">
-            <div className="sap-card-icon" style={{ background: "#e6ffe6" }}>
-              <span style={{ color: "#107c10", fontSize: "1.5rem" }}>◈</span>
-            </div>
-            <h3>Compliance</h3>
-            <p>Monitor compliance status</p>
-          </div>
-
-          <div className="sap-dashboard-card">
-            <div className="sap-card-icon" style={{ background: "#fff2e6" }}>
-              <span style={{ color: "#e97025", fontSize: "1.5rem" }}>◈</span>
-            </div>
-            <h3>Reports</h3>
-            <p>View and generate reports</p>
-          </div>
-
-          <div className="sap-dashboard-card">
-            <div className="sap-card-icon" style={{ background: "#f5f5f5" }}>
-              <span style={{ color: "#555", fontSize: "1.5rem" }}>◈</span>
-            </div>
-            <h3>Settings</h3>
-            <p>System configuration</p>
-          </div>
+          ))}
         </div>
       </div>
     </div>
