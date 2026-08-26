@@ -97,6 +97,12 @@ function QacIcon({ type }: { type: string }) {
         <path d="M4 14c0 2.2 4.5 4 10 4s10-1.8 10-4" stroke="#0070f3" strokeWidth="2" fill="none"/>
       </svg>
     ),
+    settings: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="4" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
+        <path d="M14 2v4M14 22v4M2 14h4M22 14h4M5.1 5.1l2.8 2.8M20.1 20.1l2.8 2.8M5.1 22.9l2.8-2.8M20.1 7.9l2.8-2.8" stroke="#0070f3" strokeWidth="2" strokeLinecap="round"/>
+      </svg>
+    ),
     branches: (
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
         <rect x="3" y="3" width="10" height="10" rx="2" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
@@ -174,6 +180,7 @@ export default function Dashboard() {
     { icon: "reporting", title: "Reporting & Analytics", href: "#" },
     { icon: "admin", title: "System/Admin", href: "#" },
     { icon: "storage", title: "Storage", href: "/modules/storage" },
+    { icon: "settings", title: "Settings", href: "/modules/settings" },
   ];
 
   return (

@@ -343,8 +343,6 @@ export default function FindingsObservations() {
 
   const uploadImage = async (findingId: string, file: File) => {
     setUploadingImage(findingId);
-    setError("");
-    setSuccess("");
 
     try {
       const formData = new FormData();
@@ -354,14 +352,14 @@ export default function FindingsObservations() {
       const uploadData = await uploadRes.json();
 
       if (!uploadRes.ok) {
-        setError(`Cloudinary: ${uploadData.error}`);
+        alert(`Upload failed: ${uploadData.error}`);
         setUploadingImage(null);
         return;
       }
 
       const currentFinding = findings.find((f) => f.id === findingId);
       const currentImages = currentFinding?.images || [];
-      const newImages = [...currentImages, { url: uploadData.url, public_id: uploadData.public_id }];
+      const newImages = [...currentImages, uploadData.url];
 
       const { error: dbError } = await supabase
         .from("audit_findings")
@@ -369,33 +367,17 @@ export default function FindingsObservations() {
         .eq("id", findingId);
 
       if (dbError) {
-        setError(`DB: ${dbError.message}`);
+        alert(`DB error: ${dbError.message}`);
         setUploadingImage(null);
         return;
       }
 
-      setFindings((prev) =>
-        prev.map((f) => (f.id === findingId ? { ...f, images: newImages } : f))
-      );
-      if (selectedDate) {
-        setSelectedDate((prev) =>
-          prev
-            ? {
-                ...prev,
-                departments: prev.departments.map((d) =>
-                  d.finding?.id === findingId
-                    ? { ...d, finding: { ...d.finding!, images: newImages } }
-                    : d
-                ),
-              }
-            : prev
-        );
-      }
+      await fetchAll();
       setUploadingImage(null);
-      setSuccess("Image uploaded successfully!");
+      setSuccess("Image uploaded!");
       setTimeout(() => setSuccess(""), 2000);
     } catch (err) {
-      setError(`Failed: ${String(err)}`);
+      alert(`Error: ${String(err)}`);
       setUploadingImage(null);
     }
   };
@@ -411,28 +393,13 @@ export default function FindingsObservations() {
 
       const currentFinding = findings.find((f) => f.id === findingId);
       if (!currentFinding) return;
-      const newImages = (currentFinding.images || []).filter(
-        (img) => (typeof img === "string" ? img : img.public_id) !== publicId
-      );
+      const newImages = (currentFinding.images || []).filter((img) => {
+        const id = typeof img === "string" ? img.split("/").pop()?.split(".")[0] || img : img.public_id;
+        return id !== publicId;
+      });
       await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
 
-      setFindings((prev) =>
-        prev.map((f) => (f.id === findingId ? { ...f, images: newImages } : f))
-      );
-      if (selectedDate) {
-        setSelectedDate((prev) =>
-          prev
-            ? {
-                ...prev,
-                departments: prev.departments.map((d) =>
-                  d.finding?.id === findingId
-                    ? { ...d, finding: { ...d.finding!, images: newImages } }
-                    : d
-                ),
-              }
-            : prev
-        );
-      }
+      await fetchAll();
     } catch (err) {
       setError(`Delete failed: ${err}`);
     }
