@@ -106,6 +106,7 @@ export default function FindingsObservations() {
   const [selectedDate, setSelectedDate] = useState<DateGroup | null>(null);
   const [expandedDept, setExpandedDept] = useState<string | null>(null);
   const [processingDept, setProcessingDept] = useState<string | null>(null);
+  const [processingAll, setProcessingAll] = useState(false);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -279,6 +280,64 @@ export default function FindingsObservations() {
     setProcessingDept(null);
   };
 
+  const processAllDepartments = async () => {
+    if (!selectedDate) return;
+    const unprocessed = selectedDate.departments.filter((dd) => dd.checklist && dd.checklist.items.length > 0 && !dd.finding?.processed);
+    if (unprocessed.length === 0) return;
+
+    setProcessingAll(true);
+    setError("");
+
+    for (const dd of unprocessed) {
+      setProcessingDept(dd.deptId);
+      try {
+        const res = await fetch("/api/process-findings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: dd.checklist!.items,
+            standards: dd.standards,
+            departmentName: dd.deptName,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) continue;
+
+        const cl = dd.checklist!;
+        const auditDate = cl.audit_date?.split("T")[0] || null;
+
+        if (dd.finding) {
+          await supabase.from("audit_findings").update({
+            raw_items: cl.items,
+            rephrased_findings: data.findings,
+            processed: true,
+            updated_at: new Date().toISOString(),
+          }).eq("id", dd.finding.id);
+        } else {
+          await supabase.from("audit_findings").insert({
+            checklist_id: cl.id,
+            audit_plan_id: cl.audit_plan_id,
+            audit_id: cl.audit_id,
+            department_id: dd.deptId,
+            branch_id: selectedBranch?.branchId || "",
+            raw_items: cl.items,
+            rephrased_findings: data.findings,
+            processed: true,
+            audit_date: auditDate,
+          });
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    await fetchAll();
+    setProcessingDept(null);
+    setProcessingAll(false);
+    setSuccess(`Processed ${unprocessed.length} department${unprocessed.length > 1 ? "s" : ""}`);
+    setTimeout(() => setSuccess(""), 2000);
+  };
+
   if (loading) {
     return (
       <div className="sap-login-page">
@@ -394,6 +453,12 @@ export default function FindingsObservations() {
                       <span className="sap-branch-code-tag">{selectedBranch.branchCode}</span>
                       {" "}{selectedBranch.branchName} — {selectedDate.date}
                     </h3>
+                    {selectedDate.departments.some((dd) => dd.checklist && dd.checklist.items.length > 0 && !dd.finding?.processed) && (
+                      <button className="sap-login-button" style={{ marginLeft: "auto", padding: "0.5rem 1.25rem", fontSize: "0.85rem" }}
+                        onClick={processAllDepartments} disabled={processingAll}>
+                        {processingAll ? "Processing All..." : `Process All with AI (${selectedDate.departments.filter((dd) => dd.checklist && dd.checklist.items.length > 0 && !dd.finding?.processed).length})`}
+                      </button>
+                    )}
                   </div>
                   <div style={{ fontSize: "0.85rem", color: "#666" }}>{selectedDate.objective}</div>
                 </div>
