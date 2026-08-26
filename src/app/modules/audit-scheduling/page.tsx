@@ -134,8 +134,7 @@ export default function AuditScheduling() {
       (a) =>
         a.branch_id === audit.branch_id &&
         a.start_date === audit.start_date &&
-        a.end_date === audit.end_date &&
-        a.objective === audit.objective
+        a.end_date === audit.end_date
     );
   };
 
@@ -276,7 +275,7 @@ export default function AuditScheduling() {
   const auditGroups: AuditGroup[] = useMemo(() => {
     const map = new Map<string, AuditGroup>();
     for (const a of audits) {
-      const gKey = `${a.branch_id}|${a.start_date}|${a.end_date}|${a.objective}`;
+      const gKey = `${a.branch_id}|${a.start_date}|${a.end_date}`;
       if (!map.has(gKey)) {
         map.set(gKey, {
           key: gKey,
