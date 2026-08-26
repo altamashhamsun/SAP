@@ -283,11 +283,10 @@ export default function AuditReports() {
                 return (
                   <div className="sap-report-section">
                     <h2>Summary</h2>
-                    <div className="sap-report-summary-grid">
+                    <div className="sap-report-summary-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
                       <div className="sap-summary-card"><div className="sap-summary-number">{sev.total}</div><div className="sap-summary-label">Total Findings</div></div>
                       <div className="sap-summary-card" style={{ borderLeftColor: "#dc2626" }}><div className="sap-summary-number" style={{ color: "#dc2626" }}>{sev.major}</div><div className="sap-summary-label">Major NC</div></div>
                       <div className="sap-summary-card" style={{ borderLeftColor: "#d97706" }}><div className="sap-summary-number" style={{ color: "#d97706" }}>{sev.minor}</div><div className="sap-summary-label">Minor NC</div></div>
-                      <div className="sap-summary-card" style={{ borderLeftColor: "#0284c7" }}><div className="sap-summary-number" style={{ color: "#0284c7" }}>{sev.obs}</div><div className="sap-summary-label">Observations</div></div>
                     </div>
                   </div>
                 );
@@ -332,7 +331,7 @@ export default function AuditReports() {
               </div>
 
               <div className="sap-report-section">
-                <h2>3. Findings & Observations</h2>
+                <h2>3. Findings</h2>
                 {selectedReport.departments.filter((dd) => dd.finding?.processed).length === 0 ? (
                   <p style={{ color: "#999", fontSize: "0.9rem" }}>No processed findings yet.</p>
                 ) : (
