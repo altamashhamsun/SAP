@@ -356,12 +356,15 @@ export default function AuditReports() {
                         <div style={{ marginTop: "0.75rem" }}>
                           <div style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.5rem", color: "#333" }}>Evidence Images:</div>
                           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                            {(dd.finding!.images || []).map((url, i) => (
-                              <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                                <img src={url} alt={`Evidence ${i + 1}`}
-                                  style={{ width: 120, height: 120, objectFit: "cover", borderRadius: "6px", border: "1px solid var(--sap-border)" }} />
-                              </a>
-                            ))}
+                            {(dd.finding!.images || []).map((img, i) => {
+                              const imgUrl = typeof img === "string" ? img : img.url;
+                              return (
+                                <a key={i} href={imgUrl} target="_blank" rel="noopener noreferrer">
+                                  <img src={imgUrl} alt={`Evidence ${i + 1}`}
+                                    style={{ width: 120, height: 120, objectFit: "cover", borderRadius: "6px", border: "1px solid var(--sap-border)" }} />
+                                </a>
+                              );
+                            })}
                           </div>
                         </div>
                       )}

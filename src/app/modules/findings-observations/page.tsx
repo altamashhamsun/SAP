@@ -345,18 +345,14 @@ export default function FindingsObservations() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default");
 
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: formData }
-      );
+      const res = await fetch("/api/cloudinary", { method: "POST", body: formData });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || "Upload failed");
+      if (!res.ok) throw new Error(data.error || "Upload failed");
 
       const currentFinding = findings.find((f) => f.id === findingId);
       const currentImages = currentFinding?.images || [];
-      const newImages = [...currentImages, data.secure_url];
+      const newImages = [...currentImages, { url: data.url, public_id: data.public_id }];
 
       await supabase
         .from("audit_findings")
@@ -372,12 +368,22 @@ export default function FindingsObservations() {
     setUploadingImage(null);
   };
 
-  const removeImage = async (findingId: string, imageUrl: string) => {
-    const currentFinding = findings.find((f) => f.id === findingId);
-    if (!currentFinding) return;
-    const newImages = (currentFinding.images || []).filter((url) => url !== imageUrl);
-    await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
-    await fetchAll();
+  const removeImage = async (findingId: string, publicId: string) => {
+    try {
+      await fetch("/api/cloudinary", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ public_id: publicId }),
+      });
+
+      const currentFinding = findings.find((f) => f.id === findingId);
+      if (!currentFinding) return;
+      const newImages = (currentFinding.images || []).filter((img) => img.public_id !== publicId);
+      await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
+      await fetchAll();
+    } catch (err) {
+      setError(`Delete failed: ${err}`);
+    }
   };
 
   if (loading) {
@@ -596,14 +602,17 @@ export default function FindingsObservations() {
                                   </div>
                                   {(dd.finding.images || []).length > 0 && (
                                     <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                                      {(dd.finding.images || []).map((url, i) => (
-                                        <div key={i} style={{ position: "relative" }}>
-                                          <img src={url} alt={`Evidence ${i + 1}`}
-                                            style={{ width: 100, height: 100, objectFit: "cover", borderRadius: "6px", border: "1px solid var(--sap-border)" }} />
-                                          <button onClick={() => removeImage(dd.finding!.id, url)}
-                                            style={{ position: "absolute", top: -6, right: -6, background: "#dc2626", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: "0.7rem", cursor: "pointer" }}>✕</button>
-                                        </div>
-                                      ))}
+                                      {(dd.finding.images || []).map((img, i) => {
+                                        const imgObj = typeof img === "string" ? { url: img, public_id: img } : img;
+                                        return (
+                                          <div key={i} style={{ position: "relative" }}>
+                                            <img src={imgObj.url} alt={`Evidence ${i + 1}`}
+                                              style={{ width: 100, height: 100, objectFit: "cover", borderRadius: "6px", border: "1px solid var(--sap-border)" }} />
+                                            <button onClick={() => removeImage(dd.finding!.id, imgObj.public_id)}
+                                              style={{ position: "absolute", top: -6, right: -6, background: "#dc2626", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: "0.7rem", cursor: "pointer" }}>✕</button>
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                   )}
                                   {(dd.finding.images || []).length === 0 && (

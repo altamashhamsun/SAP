@@ -13,9 +13,14 @@ interface CloudinaryUsage {
   assets: { count: number };
 }
 
-interface SupabaseFile {
-  name: string;
-  metadata: { size?: number };
+interface CloudinaryFile {
+  public_id: string;
+  secure_url: string;
+  format: string;
+  bytes: number;
+  created_at: string;
+  width: number;
+  height: number;
 }
 
 function formatBytes(bytes: number): string {
@@ -32,6 +37,10 @@ export default function StoragePage() {
   const [cloudinary, setCloudinary] = useState<CloudinaryUsage | null>(null);
   const [supabaseStorage, setSupabaseStorage] = useState({ used: 0, files: 0, buckets: 0, dbSize: 0 });
   const [cloudinaryError, setCloudinaryError] = useState("");
+  const [cloudFiles, setCloudFiles] = useState<CloudinaryFile[]>([]);
+  const [cloudFilesLoading, setCloudFilesLoading] = useState(false);
+  const [deletingFile, setDeletingFile] = useState<string | null>(null);
+  const [cloudNextCursor, setCloudNextCursor] = useState<string | null>(null);
 
   const router = useRouter();
   const supabase = createClient();
@@ -60,7 +69,7 @@ export default function StoragePage() {
           if (files) {
             totalFiles += files.length;
             for (const f of files) {
-              totalSize += (f as SupabaseFile).metadata?.size || 0;
+              totalSize += (f as { metadata?: { size?: number } }).metadata?.size || 0;
             }
           }
         }
@@ -90,7 +99,40 @@ export default function StoragePage() {
 
     fetchSupabaseStorage();
     fetchCloudinary();
+    fetchCloudFiles();
   }, [user]);
+
+  const fetchCloudFiles = async (cursor?: string | null) => {
+    setCloudFilesLoading(true);
+    try {
+      let url = "/api/cloudinary/list";
+      if (cursor) url += `?next_cursor=${cursor}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (res.ok) {
+        if (cursor) {
+          setCloudFiles((prev) => [...prev, ...data.resources]);
+        } else {
+          setCloudFiles(data.resources);
+        }
+        setCloudNextCursor(data.next_cursor);
+      }
+    } catch { /* ignore */ }
+    setCloudFilesLoading(false);
+  };
+
+  const deleteCloudFile = async (publicId: string) => {
+    setDeletingFile(publicId);
+    try {
+      await fetch("/api/cloudinary", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ public_id: publicId }),
+      });
+      setCloudFiles((prev) => prev.filter((f) => f.public_id !== publicId));
+    } catch { /* ignore */ }
+    setDeletingFile(null);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -119,8 +161,8 @@ export default function StoragePage() {
 
   if (!user) { router.push("/login"); return null; }
 
-  const supabaseLimit = 1024 * 1024 * 1024; // 1 GB free tier
-  const supabaseDbLimit = 1024 * 1024 * 1024; // 1 GB database
+  const supabaseLimit = 1024 * 1024 * 1024;
+  const supabaseDbLimit = 1024 * 1024 * 1024;
   const supabaseFilePercent = Math.min((supabaseStorage.used / supabaseLimit) * 100, 100);
   const supabaseDbPercent = Math.min((supabaseStorage.dbSize / supabaseDbLimit) * 100, 100);
   const cloudinaryPercent = cloudinary?.storage.limit
@@ -263,6 +305,52 @@ export default function StoragePage() {
               </>
             )}
           </div>
+        </div>
+
+        {/* Cloudinary Files Browser */}
+        <div className="sap-plan-form-section" style={{ marginTop: "1.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+            <h3 style={{ margin: 0 }}>Cloudinary Files</h3>
+            <button className="sap-action-btn" onClick={() => fetchCloudFiles()} disabled={cloudFilesLoading} style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}>
+              {cloudFilesLoading ? "Loading..." : "Refresh"}
+            </button>
+          </div>
+
+          {cloudFiles.length === 0 && !cloudFilesLoading ? (
+            <p style={{ color: "#999", fontSize: "0.85rem" }}>No files uploaded yet.</p>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "1rem" }}>
+                {cloudFiles.map((file) => (
+                  <div key={file.public_id} style={{ border: "1px solid var(--sap-border)", borderRadius: "8px", overflow: "hidden", background: "#fff" }}>
+                    <a href={file.secure_url} target="_blank" rel="noopener noreferrer">
+                      <img src={file.secure_url} alt={file.public_id}
+                        style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
+                    </a>
+                    <div style={{ padding: "0.5rem 0.75rem" }}>
+                      <div style={{ fontSize: "0.75rem", color: "#333", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={file.public_id}>
+                        {file.public_id.split("/").pop()}
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.25rem" }}>
+                        <span style={{ fontSize: "0.7rem", color: "#999" }}>{formatBytes(file.bytes)}</span>
+                        <button onClick={() => deleteCloudFile(file.public_id)} disabled={deletingFile === file.public_id}
+                          style={{ background: "#dc2626", color: "#fff", border: "none", borderRadius: "4px", padding: "0.15rem 0.5rem", fontSize: "0.7rem", cursor: "pointer" }}>
+                          {deletingFile === file.public_id ? "..." : "Delete"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {cloudNextCursor && (
+                <div style={{ textAlign: "center", marginTop: "1rem" }}>
+                  <button className="sap-action-btn" onClick={() => fetchCloudFiles(cloudNextCursor)} disabled={cloudFilesLoading} style={{ fontSize: "0.8rem" }}>
+                    Load More
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
