@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { User } from "@supabase/supabase-js";
 import React from "react";
 import Link from "next/link";
@@ -123,11 +123,50 @@ export default function AuditPlanning() {
   const getAuditLabel = (audit: Audit) => {
     const branchCode = audit.branches?.code || "—";
     const branchName = audit.branches?.name || "—";
-    const deptName = audit.departments?.name || "—";
-    return `[${branchCode}] ${branchName} — ${deptName} (${audit.start_date} to ${audit.end_date})`;
+    return `[${branchCode}] ${branchName} — ${audit.objective} (${audit.start_date} to ${audit.end_date})`;
   };
 
   const getPlanForAudit = (auditId: string) => plans.find((p) => p.audit_id === auditId);
+
+  interface AuditGroup {
+    key: string;
+    representative: Audit;
+    allAudits: Audit[];
+    branchCode: string;
+    branchName: string;
+    objective: string;
+    start_date: string;
+    end_date: string;
+    deptCount: number;
+  }
+
+  const auditGroups: AuditGroup[] = useMemo(() => {
+    const map = new Map<string, AuditGroup>();
+    for (const a of audits) {
+      const gKey = `${a.branch_id}|${a.start_date}|${a.end_date}|${a.objective}`;
+      if (!map.has(gKey)) {
+        map.set(gKey, {
+          key: gKey,
+          representative: a,
+          allAudits: [],
+          branchCode: a.branches?.code || "—",
+          branchName: a.branches?.name || "—",
+          objective: a.objective,
+          start_date: a.start_date,
+          end_date: a.end_date,
+          deptCount: 0,
+        });
+      }
+      const g = map.get(gKey)!;
+      g.allAudits.push(a);
+      g.deptCount = g.allAudits.length;
+    }
+    return Array.from(map.values());
+  }, [audits]);
+
+  const isGroupPlanned = (group: AuditGroup) => group.allAudits.some((a) => getPlanForAudit(a.id));
+
+  const selectedGroup = auditGroups.find((g) => g.allAudits.some((a) => a.id === selectedAuditId));
 
   const startCreatePlan = async () => {
     setError("");
@@ -285,22 +324,22 @@ export default function AuditPlanning() {
                   onChange={(e) => { setSelectedAuditId(e.target.value); setError(""); }}
                 >
                   <option value="">Select audit...</option>
-                  {audits.map((a) => {
-                    const hasPlan = !!getPlanForAudit(a.id);
+                  {auditGroups.map((group) => {
+                    const planned = isGroupPlanned(group);
                     return (
-                      <option key={a.id} value={a.id} disabled={hasPlan}>
-                        {getAuditLabel(a)}{hasPlan ? " — Plan Created" : ""}
+                      <option key={group.key} value={group.representative.id} disabled={planned}>
+                        [{group.branchCode}] {group.branchName} — {group.objective} ({group.start_date} to {group.end_date}){planned ? " — Plan Created" : ""}
                       </option>
                     );
                   })}
                 </select>
               </div>
-              {selectedAudit && (
+              {selectedGroup && (
                 <div className="sap-audit-preview">
-                  <div className="sap-preview-row"><span>Branch:</span> <strong>{selectedAudit.branches?.code} — {selectedAudit.branches?.name}</strong></div>
-                  <div className="sap-preview-row"><span>Department:</span> <strong>{selectedAudit.departments?.name}</strong></div>
-                  <div className="sap-preview-row"><span>Duration:</span> <strong>{selectedAudit.start_date} → {selectedAudit.end_date}</strong></div>
-                  <div className="sap-preview-row"><span>Objective:</span> <strong>{selectedAudit.objective}</strong></div>
+                  <div className="sap-preview-row"><span>Branch:</span> <strong>{selectedGroup.branchCode} — {selectedGroup.branchName}</strong></div>
+                  <div className="sap-preview-row"><span>Departments:</span> <strong>{selectedGroup.deptCount} department{selectedGroup.deptCount > 1 ? "s" : ""}</strong></div>
+                  <div className="sap-preview-row"><span>Duration:</span> <strong>{selectedGroup.start_date} → {selectedGroup.end_date}</strong></div>
+                  <div className="sap-preview-row"><span>Objective:</span> <strong>{selectedGroup.objective}</strong></div>
                 </div>
               )}
               <button className="sap-login-button" onClick={startCreatePlan} disabled={!selectedAuditId}>
