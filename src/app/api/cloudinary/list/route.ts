@@ -11,10 +11,9 @@ export async function GET(req: NextRequest) {
     }
 
     const auth = Buffer.from(`${apiKey}:${apiSecret}`).toString("base64");
-    const folder = req.nextUrl.searchParams.get("folder") || "qac-findings";
     const nextCursor = req.nextUrl.searchParams.get("next_cursor");
 
-    let url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&prefix=${folder}/&max_results=50`;
+    let url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?type=upload&max_results=50`;
     if (nextCursor) url += `&next_cursor=${nextCursor}`;
 
     const res = await fetch(url, {

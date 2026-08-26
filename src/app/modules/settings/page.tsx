@@ -69,21 +69,25 @@ export default function SettingsPage() {
   const fetchAuditImages = async () => {
     setAuditImagesLoading(true);
     try {
-      const { data: findings } = await supabase
-        .from("audit_findings")
-        .select("id, images, branch_id, department_id, audit_date, branches(name), departments(name)")
-        .not("images", "is", null);
+      const [findingsRes, branchesRes, deptsRes] = await Promise.all([
+        supabase.from("audit_findings").select("id, images, branch_id, department_id, audit_date").not("images", "is", null),
+        supabase.from("branches").select("id, name"),
+        supabase.from("departments").select("id, name"),
+      ]);
+
+      const branchMap = new Map((branchesRes.data || []).map((b: { id: string; name: string }) => [b.id, b.name]));
+      const deptMap = new Map((deptsRes.data || []).map((d: { id: string; name: string }) => [d.id, d.name]));
 
       const images: AuditImage[] = [];
-      for (const f of findings || []) {
+      for (const f of findingsRes.data || []) {
         const imgs = (f.images || []) as string[];
         for (const img of imgs) {
           if (!img) continue;
           images.push({
             findingId: f.id,
             imageUrl: img,
-            branchName: (f as unknown as { branches?: { name: string } }).branches?.name || "—",
-            deptName: (f as unknown as { departments?: { name: string } }).departments?.name || "—",
+            branchName: branchMap.get(f.branch_id) || "—",
+            deptName: deptMap.get(f.department_id) || "—",
             auditDate: f.audit_date || "—",
           });
         }
