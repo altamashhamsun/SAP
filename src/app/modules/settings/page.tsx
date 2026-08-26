@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const [deletingImage, setDeletingImage] = useState<string | null>(null);
 
   const [buckets, setBuckets] = useState<string[]>([]);
-  const [storageFiles, setStorageFiles] = useState<StorageFile[]>([]);
+  const [storageFiles, setStorageFiles] = useState<Array<{name:string;id:string;created_at:string|null;metadata:{size?:number}|null}>>([]);
   const [storageLoading, setStorageLoading] = useState(false);
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
   const [selectedBucket, setSelectedBucket] = useState<string>("");
@@ -375,7 +375,7 @@ export default function SettingsPage() {
                       <div style={{ fontSize: "0.7rem", color: "#999" }}>
                         {file.metadata?.size ? formatBytes(file.metadata.size) : "—"}
                         {" · "}
-                        {new Date(file.created_at).toLocaleDateString()}
+                        {file.created_at ? new Date(file.created_at).toLocaleDateString() : "—"}
                       </div>
                     </div>
                     <button
