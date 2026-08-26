@@ -69,6 +69,7 @@ interface AuditFinding {
   rephrased_findings: FindingItem[];
   processed: boolean;
   audit_date: string | null;
+  images?: string[];
 }
 
 interface DateGroup {
@@ -110,6 +111,7 @@ export default function FindingsObservations() {
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [uploadingImage, setUploadingImage] = useState<string | null>(null);
 
   const router = useRouter();
   const supabase = createClient();
@@ -338,6 +340,46 @@ export default function FindingsObservations() {
     setTimeout(() => setSuccess(""), 2000);
   };
 
+  const uploadImage = async (findingId: string, file: File) => {
+    setUploadingImage(findingId);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default");
+
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || "Upload failed");
+
+      const currentFinding = findings.find((f) => f.id === findingId);
+      const currentImages = currentFinding?.images || [];
+      const newImages = [...currentImages, data.secure_url];
+
+      await supabase
+        .from("audit_findings")
+        .update({ images: newImages })
+        .eq("id", findingId);
+
+      await fetchAll();
+      setSuccess("Image uploaded");
+      setTimeout(() => setSuccess(""), 2000);
+    } catch (err) {
+      setError(`Upload failed: ${err}`);
+    }
+    setUploadingImage(null);
+  };
+
+  const removeImage = async (findingId: string, imageUrl: string) => {
+    const currentFinding = findings.find((f) => f.id === findingId);
+    if (!currentFinding) return;
+    const newImages = (currentFinding.images || []).filter((url) => url !== imageUrl);
+    await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
+    await fetchAll();
+  };
+
   if (loading) {
     return (
       <div className="sap-login-page">
@@ -537,6 +579,37 @@ export default function FindingsObservations() {
                                     </div>
                                   </div>
                                 ))}
+
+                                <div style={{ marginTop: "1rem", borderTop: "1px solid var(--sap-border)", paddingTop: "0.75rem" }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+                                    <label style={{ fontSize: "0.85rem", fontWeight: 600 }}>Evidence Images</label>
+                                    <label style={{ fontSize: "0.8rem", color: "#0070f3", cursor: "pointer", border: "1px dashed #0070f3", padding: "0.25rem 0.75rem", borderRadius: "4px" }}>
+                                      {uploadingImage === dd.finding.id ? "Uploading..." : "+ Add Image"}
+                                      <input type="file" accept="image/*" style={{ display: "none" }}
+                                        disabled={uploadingImage === dd.finding.id}
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) uploadImage(dd.finding!.id, file);
+                                          e.target.value = "";
+                                        }} />
+                                    </label>
+                                  </div>
+                                  {(dd.finding.images || []).length > 0 && (
+                                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                                      {(dd.finding.images || []).map((url, i) => (
+                                        <div key={i} style={{ position: "relative" }}>
+                                          <img src={url} alt={`Evidence ${i + 1}`}
+                                            style={{ width: 100, height: 100, objectFit: "cover", borderRadius: "6px", border: "1px solid var(--sap-border)" }} />
+                                          <button onClick={() => removeImage(dd.finding!.id, url)}
+                                            style={{ position: "absolute", top: -6, right: -6, background: "#dc2626", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: "0.7rem", cursor: "pointer" }}>✕</button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {(dd.finding.images || []).length === 0 && (
+                                    <p style={{ fontSize: "0.8rem", color: "#999" }}>No images uploaded yet</p>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
