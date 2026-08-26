@@ -354,12 +354,10 @@ export default function FindingsObservations() {
       const uploadData = await uploadRes.json();
 
       if (!uploadRes.ok) {
-        alert(`Cloudinary failed: ${uploadData.error}`);
+        setError(`Cloudinary: ${uploadData.error}`);
         setUploadingImage(null);
         return;
       }
-
-      alert(`Cloudinary OK: ${uploadData.url}`);
 
       const currentFinding = findings.find((f) => f.id === findingId);
       const currentImages = currentFinding?.images || [];
@@ -371,15 +369,33 @@ export default function FindingsObservations() {
         .eq("id", findingId);
 
       if (dbError) {
-        alert(`DB failed: ${dbError.message}`);
+        setError(`DB: ${dbError.message}`);
         setUploadingImage(null);
         return;
       }
 
-      alert("DB OK — reloading now");
-      window.location.reload();
+      setFindings((prev) =>
+        prev.map((f) => (f.id === findingId ? { ...f, images: newImages } : f))
+      );
+      if (selectedDate) {
+        setSelectedDate((prev) =>
+          prev
+            ? {
+                ...prev,
+                departments: prev.departments.map((d) =>
+                  d.finding?.id === findingId
+                    ? { ...d, finding: { ...d.finding!, images: newImages } }
+                    : d
+                ),
+              }
+            : prev
+        );
+      }
+      setUploadingImage(null);
+      setSuccess("Image uploaded successfully!");
+      setTimeout(() => setSuccess(""), 2000);
     } catch (err) {
-      alert(`Catch: ${String(err)}`);
+      setError(`Failed: ${String(err)}`);
       setUploadingImage(null);
     }
   };
@@ -395,10 +411,28 @@ export default function FindingsObservations() {
 
       const currentFinding = findings.find((f) => f.id === findingId);
       if (!currentFinding) return;
-      const newImages = (currentFinding.images || []).filter((img) => img.public_id !== publicId);
+      const newImages = (currentFinding.images || []).filter(
+        (img) => (typeof img === "string" ? img : img.public_id) !== publicId
+      );
       await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
 
-      window.location.href = window.location.href;
+      setFindings((prev) =>
+        prev.map((f) => (f.id === findingId ? { ...f, images: newImages } : f))
+      );
+      if (selectedDate) {
+        setSelectedDate((prev) =>
+          prev
+            ? {
+                ...prev,
+                departments: prev.departments.map((d) =>
+                  d.finding?.id === findingId
+                    ? { ...d, finding: { ...d.finding!, images: newImages } }
+                    : d
+                ),
+              }
+            : prev
+        );
+      }
     } catch (err) {
       setError(`Delete failed: ${err}`);
     }
