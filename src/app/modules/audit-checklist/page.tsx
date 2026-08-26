@@ -51,6 +51,7 @@ interface ChecklistItem {
   department_id: string;
   list_type: "numeric" | "bullet";
   items: string[];
+  audit_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -181,6 +182,7 @@ export default function AuditChecklist() {
           department_id: deptId,
           list_type: listType,
           items,
+          audit_date: new Date().toISOString(),
         })
         .select()
         .single();

@@ -1449,3 +1449,84 @@ th {
 .sap-checklist-item-row .sap-field-input {
   flex: 1;
 }
+
+/* Findings & Observations */
+.sap-findings-raw {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.sap-findings-processed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sap-finding-card {
+  border: 1px solid var(--sap-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sap-finding-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.sap-finding-severity {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.sap-severity-major-nc {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.sap-severity-minor-nc {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.sap-severity-observation {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.sap-finding-clause {
+  font-size: 0.8rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.sap-finding-body {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sap-finding-field label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--sap-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.sap-finding-field p {
+  font-size: 0.85rem;
+  color: var(--sap-text);
+  margin: 0;
+  line-height: 1.4;
+}
