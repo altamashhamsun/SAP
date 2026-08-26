@@ -90,6 +90,13 @@ function QacIcon({ type }: { type: string }) {
         <path d="M21 13l1 1 2-2" stroke="#0070f3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
+    storage: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <ellipse cx="14" cy="7" rx="10" ry="4" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
+        <path d="M4 7v14c0 2.2 4.5 4 10 4s10-1.8 10-4V7" stroke="#0070f3" strokeWidth="2" fill="none"/>
+        <path d="M4 14c0 2.2 4.5 4 10 4s10-1.8 10-4" stroke="#0070f3" strokeWidth="2" fill="none"/>
+      </svg>
+    ),
     branches: (
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
         <rect x="3" y="3" width="10" height="10" rx="2" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
@@ -166,6 +173,7 @@ export default function Dashboard() {
     { icon: "operational", title: "Operational Add-ons", href: "#" },
     { icon: "reporting", title: "Reporting & Analytics", href: "#" },
     { icon: "admin", title: "System/Admin", href: "#" },
+    { icon: "storage", title: "Storage", href: "/modules/storage" },
   ];
 
   return (
