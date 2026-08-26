@@ -53,8 +53,6 @@ const FORM_FIELDS = [
   { key: "audit_criteria", label: "Audit Criteria", placeholder: "ISO standards, regulations, procedures to audit against..." },
   { key: "schedule_timetable", label: "Schedule & Timetable", placeholder: "Day-by-day schedule, time slots, milestones..." },
   { key: "audit_methods", label: "Audit Methods", placeholder: "Interviews, document review, observations, sampling methods..." },
-  { key: "auditee_contacts", label: "Auditee Contacts", placeholder: "Key contacts from the department being audited..." },
-  { key: "risk_factors", label: "Risk Factors", placeholder: "Potential risks, challenges, and mitigation strategies..." },
   { key: "reporting_structure", label: "Reporting Structure", placeholder: "How findings will be reported, follow-up process..." },
 ] as const;
 
