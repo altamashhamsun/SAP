@@ -30,7 +30,7 @@ export default function StoragePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [cloudinary, setCloudinary] = useState<CloudinaryUsage | null>(null);
-  const [supabaseStorage, setSupabaseStorage] = useState({ used: 0, files: 0, buckets: 0 });
+  const [supabaseStorage, setSupabaseStorage] = useState({ used: 0, files: 0, buckets: 0, dbSize: 0 });
   const [cloudinaryError, setCloudinaryError] = useState("");
 
   const router = useRouter();
@@ -65,9 +65,12 @@ export default function StoragePage() {
           }
         }
 
-        setSupabaseStorage({ used: totalSize, files: totalFiles, buckets: bucketCount });
+        const { data: dbSizeData } = await supabase.rpc("get_database_size");
+        const dbSize = typeof dbSizeData === "number" ? dbSizeData : 0;
+
+        setSupabaseStorage({ used: totalSize, files: totalFiles, buckets: bucketCount, dbSize });
       } catch {
-        setSupabaseStorage({ used: 0, files: 0, buckets: 0 });
+        setSupabaseStorage({ used: 0, files: 0, buckets: 0, dbSize: 0 });
       }
     };
 
@@ -117,7 +120,9 @@ export default function StoragePage() {
   if (!user) { router.push("/login"); return null; }
 
   const supabaseLimit = 1024 * 1024 * 1024; // 1 GB free tier
-  const supabasePercent = Math.min((supabaseStorage.used / supabaseLimit) * 100, 100);
+  const supabaseDbLimit = 1024 * 1024 * 1024; // 1 GB database
+  const supabaseFilePercent = Math.min((supabaseStorage.used / supabaseLimit) * 100, 100);
+  const supabaseDbPercent = Math.min((supabaseStorage.dbSize / supabaseDbLimit) * 100, 100);
   const cloudinaryPercent = cloudinary?.storage.limit
     ? Math.min((cloudinary.storage.used / cloudinary.storage.limit) * 100, 100)
     : 0;
@@ -166,12 +171,24 @@ export default function StoragePage() {
 
             <div style={{ marginBottom: "1.25rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>Storage Used</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>File Storage</span>
                 <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{formatBytes(supabaseStorage.used)} / 1 GB</span>
               </div>
               <div style={{ width: "100%", height: 10, background: "#e5e7eb", borderRadius: 5, overflow: "hidden" }}>
-                <div style={{ width: `${supabasePercent}%`, height: "100%", background: supabasePercent > 80 ? "#dc2626" : "#3ECF8E", borderRadius: 5, transition: "width 0.5s" }} />
+                <div style={{ width: `${supabaseFilePercent}%`, height: "100%", background: supabaseFilePercent > 80 ? "#dc2626" : "#3ECF8E", borderRadius: 5, transition: "width 0.5s" }} />
               </div>
+              <div style={{ fontSize: "0.75rem", color: "#999", marginTop: "0.25rem" }}>{formatBytes(supabaseLimit - supabaseStorage.used)} remaining</div>
+            </div>
+
+            <div style={{ marginBottom: "1.25rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>Database</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{formatBytes(supabaseStorage.dbSize)} / 1 GB</span>
+              </div>
+              <div style={{ width: "100%", height: 10, background: "#e5e7eb", borderRadius: 5, overflow: "hidden" }}>
+                <div style={{ width: `${supabaseDbPercent}%`, height: "100%", background: supabaseDbPercent > 80 ? "#dc2626" : "#3ECF8E", borderRadius: 5, transition: "width 0.5s" }} />
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "#999", marginTop: "0.25rem" }}>{formatBytes(supabaseDbLimit - supabaseStorage.dbSize)} remaining</div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
@@ -216,11 +233,16 @@ export default function StoragePage() {
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
                     <span style={{ fontSize: "0.85rem", fontWeight: 500 }}>Storage Used</span>
                     <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>
-                      {formatBytes(cloudinary.storage.used)} / {cloudinary.storage.limit ? formatBytes(cloudinary.storage.limit) : "∞"}
+                      {formatBytes(cloudinary.storage.used)} / {cloudinary.storage.limit ? formatBytes(cloudinary.storage.limit) : "25 GB (Free Tier)"}
                     </span>
                   </div>
                   <div style={{ width: "100%", height: 10, background: "#e5e7eb", borderRadius: 5, overflow: "hidden" }}>
                     <div style={{ width: `${cloudinaryPercent}%`, height: "100%", background: cloudinaryPercent > 80 ? "#dc2626" : "#3448C5", borderRadius: 5, transition: "width 0.5s" }} />
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "#999", marginTop: "0.25rem" }}>
+                    {cloudinary.storage.limit
+                      ? `${formatBytes(cloudinary.storage.limit - cloudinary.storage.used)} remaining`
+                      : `${formatBytes(25 * 1024 * 1024 * 1024 - cloudinary.storage.used)} remaining (estimated)`}
                   </div>
                 </div>
 
