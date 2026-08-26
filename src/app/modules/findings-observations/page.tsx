@@ -345,6 +345,7 @@ export default function FindingsObservations() {
     setUploadingImage(findingId);
     setError("");
     setSuccess("");
+
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -353,7 +354,7 @@ export default function FindingsObservations() {
       const uploadData = await uploadRes.json();
 
       if (!uploadRes.ok) {
-        setError(`Cloudinary error: ${uploadData.error || "Unknown"}`);
+        setError(`Cloudinary: ${uploadData.error || "Unknown"}`);
         setUploadingImage(null);
         return;
       }
@@ -368,11 +369,13 @@ export default function FindingsObservations() {
         .eq("id", findingId);
 
       if (dbError) {
-        setError(`DB error: ${dbError.message}`);
+        setError(`DB: ${dbError.message}`);
         setUploadingImage(null);
         return;
       }
 
+      setSuccess("Image uploaded! Reloading...");
+      await new Promise((r) => setTimeout(r, 300));
       window.location.reload();
     } catch (err) {
       setError(`Upload failed: ${String(err)}`);
@@ -394,7 +397,7 @@ export default function FindingsObservations() {
       const newImages = (currentFinding.images || []).filter((img) => img.public_id !== publicId);
       await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
 
-      window.location.reload();
+      window.location.href = window.location.href;
     } catch (err) {
       setError(`Delete failed: ${err}`);
     }
