@@ -222,6 +222,17 @@ export default function FindingsObservations() {
     return Array.from(branchMap.values());
   }, [audits, plans, checklists, findings, departments]);
 
+  useEffect(() => {
+    if (!selectedBranch || !selectedDate) return;
+    const freshBranch = branchGroups.find((bg) => bg.branchId === selectedBranch.branchId);
+    if (!freshBranch) return;
+    const freshDate = freshBranch.dateGroups.find((dg) => dg.planId === selectedDate.planId);
+    if (freshDate && freshDate !== selectedDate) {
+      setSelectedBranch(freshBranch);
+      setSelectedDate(freshDate);
+    }
+  }, [branchGroups, selectedBranch?.branchId, selectedDate?.planId]);
+
   const processWithAI = async (deptData: DateGroup["departments"][0]) => {
     if (!deptData.checklist) return;
     setProcessingDept(deptData.deptId);
