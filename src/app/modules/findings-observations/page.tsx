@@ -112,6 +112,7 @@ export default function FindingsObservations() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
+  const [deletingImage, setDeletingImage] = useState<string | null>(null);
 
   const router = useRouter();
   const supabase = createClient();
@@ -342,6 +343,7 @@ export default function FindingsObservations() {
 
   const uploadImage = async (findingId: string, file: File) => {
     setUploadingImage(findingId);
+    setError("");
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -352,7 +354,8 @@ export default function FindingsObservations() {
 
       const currentFinding = findings.find((f) => f.id === findingId);
       const currentImages = currentFinding?.images || [];
-      const newImages = [...currentImages, { url: data.url, public_id: data.public_id }];
+      const newImage = { url: data.url, public_id: data.public_id };
+      const newImages = [...currentImages, newImage];
 
       await supabase
         .from("audit_findings")
@@ -360,9 +363,9 @@ export default function FindingsObservations() {
         .eq("id", findingId);
 
       setFindings((prev) =>
-        prev.map((f) => (f.id === findingId ? { ...f, images: newImages } : f))
+        prev.map((f) => (f.id === findingId ? { ...f, images: [...newImages] } : f))
       );
-      setSuccess("Image uploaded");
+      setSuccess("Image uploaded successfully");
       setTimeout(() => setSuccess(""), 2000);
     } catch (err) {
       setError(`Upload failed: ${err}`);
@@ -371,6 +374,7 @@ export default function FindingsObservations() {
   };
 
   const removeImage = async (findingId: string, publicId: string) => {
+    setDeletingImage(publicId);
     try {
       await fetch("/api/cloudinary", {
         method: "DELETE",
@@ -384,11 +388,12 @@ export default function FindingsObservations() {
       await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
 
       setFindings((prev) =>
-        prev.map((f) => (f.id === findingId ? { ...f, images: newImages } : f))
+        prev.map((f) => (f.id === findingId ? { ...f, images: [...newImages] } : f))
       );
     } catch (err) {
       setError(`Delete failed: ${err}`);
     }
+    setDeletingImage(null);
   };
 
   if (loading) {
@@ -613,8 +618,8 @@ export default function FindingsObservations() {
                                           <div key={i} style={{ position: "relative" }}>
                                             <img src={imgObj.url} alt={`Evidence ${i + 1}`}
                                               style={{ width: 100, height: 100, objectFit: "cover", borderRadius: "6px", border: "1px solid var(--sap-border)" }} />
-                                            <button onClick={() => removeImage(dd.finding!.id, imgObj.public_id)}
-                                              style={{ position: "absolute", top: -6, right: -6, background: "#dc2626", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: "0.7rem", cursor: "pointer" }}>✕</button>
+                                            <button onClick={() => removeImage(dd.finding!.id, imgObj.public_id)} disabled={deletingImage === imgObj.public_id}
+                                              style={{ position: "absolute", top: -6, right: -6, background: "#dc2626", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: "0.7rem", cursor: "pointer" }}>{deletingImage === imgObj.public_id ? "..." : "✕"}</button>
                                           </div>
                                         );
                                       })}
