@@ -354,19 +354,16 @@ export default function FindingsObservations() {
 
       const currentFinding = findings.find((f) => f.id === findingId);
       const currentImages = currentFinding?.images || [];
-      const newImage = { url: data.url, public_id: data.public_id };
-      const newImages = [...currentImages, newImage];
+      const newImages = [...currentImages, { url: data.url, public_id: data.public_id }];
 
       await supabase
         .from("audit_findings")
         .update({ images: newImages })
         .eq("id", findingId);
 
-      setFindings((prev) =>
-        prev.map((f) => (f.id === findingId ? { ...f, images: [...newImages] } : f))
-      );
       setSuccess("Image uploaded successfully");
       setTimeout(() => setSuccess(""), 2000);
+      router.refresh();
     } catch (err) {
       setError(`Upload failed: ${err}`);
     }
@@ -387,9 +384,7 @@ export default function FindingsObservations() {
       const newImages = (currentFinding.images || []).filter((img) => img.public_id !== publicId);
       await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
 
-      setFindings((prev) =>
-        prev.map((f) => (f.id === findingId ? { ...f, images: [...newImages] } : f))
-      );
+      router.refresh();
     } catch (err) {
       setError(`Delete failed: ${err}`);
     }
