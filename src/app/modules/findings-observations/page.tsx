@@ -354,10 +354,12 @@ export default function FindingsObservations() {
       const uploadData = await uploadRes.json();
 
       if (!uploadRes.ok) {
-        setError(`Cloudinary: ${uploadData.error || "Unknown"}`);
+        alert(`Cloudinary failed: ${uploadData.error}`);
         setUploadingImage(null);
         return;
       }
+
+      alert(`Cloudinary OK: ${uploadData.url}`);
 
       const currentFinding = findings.find((f) => f.id === findingId);
       const currentImages = currentFinding?.images || [];
@@ -369,16 +371,15 @@ export default function FindingsObservations() {
         .eq("id", findingId);
 
       if (dbError) {
-        setError(`DB: ${dbError.message}`);
+        alert(`DB failed: ${dbError.message}`);
         setUploadingImage(null);
         return;
       }
 
-      setSuccess("Image uploaded! Reloading...");
-      await new Promise((r) => setTimeout(r, 300));
+      alert("DB OK — reloading now");
       window.location.reload();
     } catch (err) {
-      setError(`Upload failed: ${String(err)}`);
+      alert(`Catch: ${String(err)}`);
       setUploadingImage(null);
     }
   };
