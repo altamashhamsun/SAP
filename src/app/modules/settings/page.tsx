@@ -18,7 +18,7 @@ interface AuditImage {
 interface StorageFile {
   name: string;
   id: string;
-  bucket_id: string;
+  bucket_id?: string;
   created_at: string;
   metadata?: { size?: number };
 }
