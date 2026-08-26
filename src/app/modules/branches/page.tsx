@@ -86,20 +86,15 @@ export default function BranchesModule() {
   const supabase = createClient();
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       setUser(user);
+      await Promise.all([fetchBranches(), fetchDepartments()]);
       setLoading(false);
     };
-    getUser();
-  }, [supabase.auth]);
-
-  useEffect(() => {
-    if (user) {
-      fetchBranches();
-      fetchDepartments();
-    }
-  }, [user]);
+    init();
+  }, []);
 
   const fetchBranches = async () => {
     const { data } = await supabase.from("branches").select("*").order("name");

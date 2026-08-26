@@ -86,19 +86,15 @@ export default function AuditChecklist() {
   const saveTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       setUser(user);
+      await fetchAll();
       setLoading(false);
     };
-    getUser();
-  }, [supabase.auth]);
-
-  useEffect(() => {
-    if (user) {
-      fetchAll();
-    }
-  }, [user]);
+    init();
+  }, []);
 
   useEffect(() => {
     return () => {

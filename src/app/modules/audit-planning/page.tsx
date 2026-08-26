@@ -77,20 +77,15 @@ export default function AuditPlanning() {
   formDataRef.current = formData;
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       setUser(user);
+      await Promise.all([fetchAudits(), fetchPlans()]);
       setLoading(false);
     };
-    getUser();
-  }, [supabase.auth]);
-
-  useEffect(() => {
-    if (user) {
-      fetchAudits();
-      fetchPlans();
-    }
-  }, [user]);
+    init();
+  }, []);
 
   useEffect(() => {
     return () => {

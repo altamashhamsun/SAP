@@ -46,61 +46,56 @@ export default function StoragePage() {
   const supabase = createClient();
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       setUser(user);
-      setLoading(false);
-    };
-    getUser();
-  }, [supabase.auth]);
 
-  useEffect(() => {
-    if (!user) return;
+      const fetchSupabaseStorage = async () => {
+        try {
+          const { data: buckets } = await supabase.storage.listBuckets();
+          let totalSize = 0;
+          let totalFiles = 0;
+          const bucketCount = buckets?.length || 0;
 
-    const fetchSupabaseStorage = async () => {
-      try {
-        const { data: buckets } = await supabase.storage.listBuckets();
-        let totalSize = 0;
-        let totalFiles = 0;
-        const bucketCount = buckets?.length || 0;
-
-        for (const bucket of buckets || []) {
-          const { data: files } = await supabase.storage.from(bucket.id).list("", { limit: 1000 });
-          if (files) {
-            totalFiles += files.length;
-            for (const f of files) {
-              totalSize += (f as { metadata?: { size?: number } }).metadata?.size || 0;
+          for (const bucket of buckets || []) {
+            const { data: files } = await supabase.storage.from(bucket.id).list("", { limit: 1000 });
+            if (files) {
+              totalFiles += files.length;
+              for (const f of files) {
+                totalSize += (f as { metadata?: { size?: number } }).metadata?.size || 0;
+              }
             }
           }
+
+          const { data: dbSizeData } = await supabase.rpc("get_database_size");
+          const dbSize = typeof dbSizeData === "number" ? dbSizeData : 0;
+
+          setSupabaseStorage({ used: totalSize, files: totalFiles, buckets: bucketCount, dbSize });
+        } catch {
+          setSupabaseStorage({ used: 0, files: 0, buckets: 0, dbSize: 0 });
         }
+      };
 
-        const { data: dbSizeData } = await supabase.rpc("get_database_size");
-        const dbSize = typeof dbSizeData === "number" ? dbSizeData : 0;
-
-        setSupabaseStorage({ used: totalSize, files: totalFiles, buckets: bucketCount, dbSize });
-      } catch {
-        setSupabaseStorage({ used: 0, files: 0, buckets: 0, dbSize: 0 });
-      }
-    };
-
-    const fetchCloudinary = async () => {
-      try {
-        const res = await fetch("/api/storage-usage");
-        const data = await res.json();
-        if (res.ok) {
-          setCloudinary(data);
-        } else {
-          setCloudinaryError(data.error || "Failed to load Cloudinary stats");
+      const fetchCloudinary = async () => {
+        try {
+          const res = await fetch("/api/storage-usage");
+          const data = await res.json();
+          if (res.ok) {
+            setCloudinary(data);
+          } else {
+            setCloudinaryError(data.error || "Failed to load Cloudinary stats");
+          }
+        } catch {
+          setCloudinaryError("Failed to connect to Cloudinary API");
         }
-      } catch {
-        setCloudinaryError("Failed to connect to Cloudinary API");
-      }
-    };
+      };
 
-    fetchSupabaseStorage();
-    fetchCloudinary();
-    fetchCloudFiles();
-  }, [user]);
+      await Promise.all([fetchSupabaseStorage(), fetchCloudinary(), fetchCloudFiles()]);
+      setLoading(false);
+    };
+    init();
+  }, []);
 
   const fetchCloudFiles = async (cursor?: string | null) => {
     setCloudFilesLoading(true);

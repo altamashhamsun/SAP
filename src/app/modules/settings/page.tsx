@@ -53,18 +53,16 @@ export default function SettingsPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       setUser(user);
+      if (activeTab === "audit-images") fetchAuditImages();
+      if (activeTab === "storage") fetchStorageFiles();
       setLoading(false);
     };
-    getUser();
-  }, [supabase.auth]);
-
-  useEffect(() => {
-    if (user && activeTab === "audit-images") fetchAuditImages();
-    if (user && activeTab === "storage") fetchStorageFiles();
-  }, [user, activeTab, selectedBucket]);
+    init();
+  }, []);
 
   const fetchAuditImages = async () => {
     setAuditImagesLoading(true);

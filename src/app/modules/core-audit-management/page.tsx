@@ -66,15 +66,16 @@ export default function CoreAuditManagement() {
   const supabase = createClient();
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       setUser(user);
       setLoading(false);
     };
-    getUser();
-  }, [supabase.auth]);
+    init();
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

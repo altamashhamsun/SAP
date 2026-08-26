@@ -67,21 +67,15 @@ export default function AuditScheduling() {
   const supabase = createClient();
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       setUser(user);
+      await Promise.all([fetchBranches(), fetchDepartments(), fetchAudits()]);
       setLoading(false);
     };
-    getUser();
-  }, [supabase.auth]);
-
-  useEffect(() => {
-    if (user) {
-      fetchBranches();
-      fetchDepartments();
-      fetchAudits();
-    }
-  }, [user]);
+    init();
+  }, []);
 
   const fetchBranches = async () => {
     const { data } = await supabase.from("branches").select("*").order("name");

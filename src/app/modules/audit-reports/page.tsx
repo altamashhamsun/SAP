@@ -53,15 +53,15 @@ export default function AuditReports() {
   const supabase = createClient();
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       setUser(user);
+      await fetchAll();
       setLoading(false);
     };
-    getUser();
-  }, [supabase.auth]);
-
-  useEffect(() => { if (user) fetchAll(); }, [user]);
+    init();
+  }, []);
 
   const fetchAll = async () => {
     const [auditsRes, plansRes, checklistsRes, findingsRes, deptRes] = await Promise.all([
@@ -360,7 +360,7 @@ export default function AuditReports() {
                               const imgUrl = typeof img === "string" ? img : String(img);
                               return (
                                 <a key={i} href={imgUrl} target="_blank" rel="noopener noreferrer">
-                                  <img src={imgUrl} alt={`Evidence ${i + 1}`}
+                                  <img src={imgUrl} alt={`Evidence ${i + 1}`} loading="lazy"
                                     style={{ width: 120, height: 120, objectFit: "cover", borderRadius: "6px", border: "1px solid var(--sap-border)" }} />
                                 </a>
                               );

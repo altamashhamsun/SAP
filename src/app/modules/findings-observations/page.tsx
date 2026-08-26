@@ -118,17 +118,15 @@ export default function FindingsObservations() {
   const supabase = createClient();
 
   useEffect(() => {
-    const getUser = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
       setUser(user);
+      await fetchAll();
       setLoading(false);
     };
-    getUser();
-  }, [supabase.auth]);
-
-  useEffect(() => {
-    if (user) fetchAll();
-  }, [user]);
+    init();
+  }, []);
 
   const fetchAll = async () => {
     const [auditsRes, plansRes, checklistsRes, findingsRes, deptRes] = await Promise.all([
@@ -641,7 +639,7 @@ export default function FindingsObservations() {
                                         const imgUrl = typeof img === "string" ? img : String(img);
                                         return (
                                           <div key={i} style={{ position: "relative" }}>
-                                            <img src={imgUrl} alt={`Evidence ${i + 1}`}
+                                            <img src={imgUrl} alt={`Evidence ${i + 1}`} loading="lazy"
                                               style={{ width: 100, height: 100, objectFit: "cover", borderRadius: "6px", border: "1px solid var(--sap-border)" }} />
                                             <button onClick={() => removeImage(dd.finding!.id, imgUrl)} disabled={deletingImage === imgUrl}
                                               style={{ position: "absolute", top: -6, right: -6, background: "#dc2626", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: "0.7rem", cursor: "pointer" }}>{deletingImage === imgUrl ? "..." : "✕"}</button>
