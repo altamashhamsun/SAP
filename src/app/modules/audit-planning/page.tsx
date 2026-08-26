@@ -285,9 +285,14 @@ export default function AuditPlanning() {
                   onChange={(e) => { setSelectedAuditId(e.target.value); setError(""); }}
                 >
                   <option value="">Select audit...</option>
-                  {audits.map((a) => (
-                    <option key={a.id} value={a.id}>{getAuditLabel(a)}</option>
-                  ))}
+                  {audits.map((a) => {
+                    const hasPlan = !!getPlanForAudit(a.id);
+                    return (
+                      <option key={a.id} value={a.id} disabled={hasPlan}>
+                        {getAuditLabel(a)}{hasPlan ? " — Plan Created" : ""}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
               {selectedAudit && (
