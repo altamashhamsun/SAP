@@ -344,32 +344,40 @@ export default function FindingsObservations() {
   const uploadImage = async (findingId: string, file: File) => {
     setUploadingImage(findingId);
     setError("");
+    setSuccess("");
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/cloudinary", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      const uploadRes = await fetch("/api/cloudinary", { method: "POST", body: formData });
+      const uploadData = await uploadRes.json();
+
+      if (!uploadRes.ok) {
+        setError(`Cloudinary error: ${uploadData.error || "Unknown"}`);
+        setUploadingImage(null);
+        return;
+      }
 
       const currentFinding = findings.find((f) => f.id === findingId);
       const currentImages = currentFinding?.images || [];
-      const newImages = [...currentImages, { url: data.url, public_id: data.public_id }];
+      const newImages = [...currentImages, { url: uploadData.url, public_id: uploadData.public_id }];
 
-      await supabase
+      const { error: dbError } = await supabase
         .from("audit_findings")
         .update({ images: newImages })
         .eq("id", findingId);
 
-      setSuccess("Image uploaded successfully");
-      setTimeout(() => {
-        setSuccess("");
-        window.location.reload();
-      }, 500);
+      if (dbError) {
+        setError(`DB error: ${dbError.message}`);
+        setUploadingImage(null);
+        return;
+      }
+
+      window.location.reload();
     } catch (err) {
-      setError(`Upload failed: ${err}`);
+      setError(`Upload failed: ${String(err)}`);
+      setUploadingImage(null);
     }
-    setUploadingImage(null);
   };
 
   const removeImage = async (findingId: string, publicId: string) => {

@@ -14,16 +14,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cloudinary not configured" }, { status: 500 });
     }
 
+    const timestamp = Math.round(Date.now() / 1000);
+    const signature = generateSignature(apiSecret, {
+      folder: "qac-findings",
+      timestamp,
+    });
+
     const uploadFormData = new FormData();
     uploadFormData.append("file", file);
     uploadFormData.append("api_key", apiKey);
-    uploadFormData.append("timestamp", Math.round(Date.now() / 1000).toString());
+    uploadFormData.append("timestamp", timestamp.toString());
     uploadFormData.append("folder", "qac-findings");
-
-    const signature = generateSignature(apiSecret, {
-      folder: "qac-findings",
-      timestamp: Math.round(Date.now() / 1000),
-    });
     uploadFormData.append("signature", signature);
 
     const res = await fetch(
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
     const data = await res.json();
 
     if (!res.ok) {
-      return NextResponse.json({ error: data.error?.message || "Upload failed" }, { status: 400 });
+      return NextResponse.json({ error: data.error?.message || JSON.stringify(data.error) || "Upload failed" }, { status: 400 });
     }
 
     return NextResponse.json({ url: data.secure_url, public_id: data.public_id });
