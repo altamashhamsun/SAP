@@ -49,9 +49,8 @@ export default function NcrPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [ncrs, setNcrs] = useState<NcrRecord[]>([]);
 
-  const [view, setView] = useState<"branches" | "departments" | "ncrs">("branches");
+  const [view, setView] = useState<"branches" | "departments">("branches");
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
-  const [selectedDept, setSelectedDept] = useState<Department | null>(null);
 
   const [updatingNcr, setUpdatingNcr] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -108,11 +107,6 @@ export default function NcrPage() {
       if (entry) entry.ncrs.push(ncr);
     }
     return Array.from(deptMap.values()).filter((d) => d.ncrs.length > 0);
-  };
-
-  const deptNcrs = (): NcrRecord[] => {
-    if (!selectedBranch || !selectedDept) return [];
-    return filteredNcrs.filter((n) => n.branch_id === selectedBranch.id && n.department_id === selectedDept.id);
   };
 
   const updateNcr = async (ncrId: string, field: string, value: string) => {
@@ -288,111 +282,56 @@ export default function NcrPage() {
 
         {view === "departments" && selectedBranch && (
           <div>
-            <button className="sap-action-btn" onClick={() => { setView("branches"); setSelectedBranch(null); setSelectedDept(null); }}>
+            <button className="sap-action-btn" onClick={() => { setView("branches"); setSelectedBranch(null); }}>
               ← Back to Branches
             </button>
             <h3 style={{ margin: "1rem 0" }}>
               <span className="sap-branch-code-tag">{selectedBranch.code}</span> {selectedBranch.name} — Departments
             </h3>
 
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
-              <div style={{
-                background: "linear-gradient(135deg, #f8faff 0%, #eef2ff 100%)",
-                borderRadius: "16px",
-                border: "1px solid #c7d2fe",
-                padding: "1.5rem 2.5rem",
-                boxShadow: "0 4px 12px rgba(0,112,243,0.08)",
-                width: "100%",
-                maxWidth: "700px",
-              }}>
-                <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-                  <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0a2540", marginBottom: "0.25rem" }}>
-                    <span className="sap-branch-code-tag" style={{ marginRight: "0.5rem" }}>{selectedBranch.code}</span>
-                    Department NCR Scoreboard
-                  </div>
-                </div>
-                <DateFilter />
-                {(() => {
-                  const branchNcrs = filteredNcrs.filter((n) => n.branch_id === selectedBranch.id);
-                  const bTotal = branchNcrs.length;
-                  const bResolved = branchNcrs.filter((n) => n.status === "Resolved" || n.status === "Closed").length;
-                  const bInProgress = branchNcrs.filter((n) => n.status === "In Progress").length;
-                  const bOpen = branchNcrs.filter((n) => n.status === "Not Resolved").length;
-                  const bRate = bTotal > 0 ? Math.round((bResolved / bTotal) * 100) : 0;
-                  return (
-                    <div style={{ display: "flex", justifyContent: "center", gap: "1rem", flexWrap: "wrap" }}>
-                      <ScoreCard label="Total NCRs" value={bTotal} color="#0070f3" icon="📋" />
-                      <ScoreCard label="Resolved" value={bResolved} color="#16a34a" icon="✅" />
-                      <ScoreCard label="In Progress" value={bInProgress} color="#2563eb" icon="🔄" />
-                      <ScoreCard label="Open" value={bOpen} color="#dc2626" icon="⚠️" />
-                      <ScoreCard label="Resolution Rate" value={`${bRate}%`} color={bRate >= 70 ? "#16a34a" : bRate >= 40 ? "#e97025" : "#dc2626"} icon="📊" />
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
+            <DateFilter />
 
-            <div className="sap-plans-list">
-              {branchDepartments().map(({ dept, ncrs: dNcrs }) => {
+            {branchDepartments().length === 0 ? (
+              <p className="sap-empty-msg">No NCRs for this branch{dateFrom || dateTo ? " in the selected date range" : ""}.</p>
+            ) : (
+              branchDepartments().map(({ dept, ncrs: dNcrs }) => {
                 const resolved = dNcrs.filter((n) => n.status === "Resolved" || n.status === "Closed").length;
                 const inProg = dNcrs.filter((n) => n.status === "In Progress").length;
                 const open = dNcrs.filter((n) => n.status === "Not Resolved").length;
                 const rate = dNcrs.length > 0 ? Math.round((resolved / dNcrs.length) * 100) : 0;
                 return (
-                  <div key={dept.id} className="sap-plan-card" style={{ cursor: "pointer" }}
-                    onClick={() => { setSelectedDept(dept); setView("ncrs"); }}>
-                    <div className="sap-plan-card-header">
-                      <div>
-                        <span className="sap-dept-tag">{dept.code}</span>
-                        <span className="sap-plan-card-title">{dept.name}</span>
+                  <div key={dept.id} style={{ marginBottom: "2rem" }}>
+                    <div style={{
+                      background: "linear-gradient(135deg, #f8faff 0%, #eef2ff 100%)",
+                      borderRadius: "12px",
+                      border: "1px solid #c7d2fe",
+                      padding: "1.25rem 2rem",
+                      boxShadow: "0 2px 8px rgba(0,112,243,0.06)",
+                      marginBottom: "1rem",
+                    }}>
+                      <div style={{ textAlign: "center", marginBottom: "0.75rem" }}>
+                        <span className="sap-dept-tag" style={{ marginRight: "0.5rem" }}>{dept.code}</span>
+                        <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0a2540" }}>{dept.name}</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <div style={{
-                          width: 48, height: 48, borderRadius: "50%",
-                          border: `3px solid ${rate >= 70 ? "#16a34a" : rate >= 40 ? "#e97025" : "#dc2626"}`,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: "0.75rem", fontWeight: 800,
-                          color: rate >= 70 ? "#16a34a" : rate >= 40 ? "#e97025" : "#dc2626",
-                        }}>
-                          {rate}%
-                        </div>
+                      <div style={{ display: "flex", justifyContent: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                        <ScoreCard label="Total NCRs" value={dNcrs.length} color="#0070f3" />
+                        <ScoreCard label="Resolved" value={resolved} color="#16a34a" />
+                        <ScoreCard label="In Progress" value={inProg} color="#2563eb" />
+                        <ScoreCard label="Open" value={open} color="#dc2626" />
+                        <ScoreCard label="Resolution Rate" value={`${rate}%`} color={rate >= 70 ? "#16a34a" : rate >= 40 ? "#e97025" : "#dc2626"} />
                       </div>
                     </div>
-                    <div className="sap-plan-card-summary">
-                      {dNcrs.length} NCR{dNcrs.length !== 1 ? "s" : ""}
-                      {" · "}
-                      <span style={{ color: "#16a34a" }}>{resolved} resolved</span>
-                      {" · "}
-                      <span style={{ color: "#2563eb" }}>{inProg} in progress</span>
-                      {" · "}
-                      <span style={{ color: "#dc2626" }}>{open} open</span>
-                    </div>
+
+                    {dNcrs.length === 0 ? null : (
+                      <NcrTable ncrs={dNcrs} updatingNcr={updatingNcr} updateNcr={updateNcr} supabase={supabase} branches={branches} departments={departments} />
+                    )}
                   </div>
                 );
-              })}
-            </div>
-          </div>
-        )}
-
-        {view === "ncrs" && selectedBranch && selectedDept && (
-          <div>
-            <button className="sap-action-btn" onClick={() => { setView("departments"); setSelectedDept(null); }}>
-              ← Back to Departments
-            </button>
-            <h3 style={{ margin: "1rem 0" }}>
-              <span className="sap-branch-code-tag">{selectedBranch.code}</span>{" "}
-              <span className="sap-dept-tag">{selectedDept.code}</span> {selectedDept.name} — NCRs
-            </h3>
-
-            <DateFilter />
-
-            {deptNcrs().length === 0 ? (
-              <p className="sap-empty-msg">No NCRs for this department{dateFrom || dateTo ? " in the selected date range" : ""}.</p>
-            ) : (
-              <NcrTable ncrs={deptNcrs()} updatingNcr={updatingNcr} updateNcr={updateNcr} supabase={supabase} branches={branches} departments={departments} />
+              })
             )}
           </div>
         )}
+
       </div>
     </div>
   );
