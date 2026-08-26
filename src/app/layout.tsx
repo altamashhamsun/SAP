@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SAP - Full Stack App",
-  description: "Full stack application with Next.js and Supabase",
+  title: "QAC - Quality Assurance & Compliance",
+  description: "Quality Assurance and Compliance Department - Audit Management System",
 };
 
 export default function RootLayout({

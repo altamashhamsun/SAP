@@ -266,6 +266,7 @@ export default function AuditReports() {
                     <text x="40" y="28" fontFamily="Arial" fontSize="22" fontWeight="bold" fill="#0070f3">QAC</text>
                   </svg>
                 </div>
+                <h2 style={{ fontSize: "0.85rem", fontWeight: 400, color: "#666", margin: 0 }}>Quality Assurance & Compliance Department</h2>
                 <h1 className="sap-report-title">Audit Report</h1>
                 <div className="sap-report-meta">
                   <div><strong>Branch:</strong> {selectedReport.branchCode} — {selectedReport.branchName}</div>
