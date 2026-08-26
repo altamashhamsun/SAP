@@ -169,7 +169,7 @@ export default function Dashboard() {
 
   const tiles = [
     { icon: "audit", title: "Core Audit Management", href: "/modules/core-audit-management" },
-    { icon: "ncr", title: "Non-Conformance & Corrective Action", href: "#" },
+    { icon: "ncr", title: "Non-Conformities & CAPAs", href: "/modules/ncr" },
     { icon: "compliance", title: "Compliance Tracking", href: "#" },
     { icon: "document", title: "Document Control", href: "#" },
     { icon: "risk", title: "Risk Management", href: "#" },
