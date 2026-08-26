@@ -394,7 +394,7 @@ export default function FindingsObservations() {
       const currentFinding = findings.find((f) => f.id === findingId);
       if (!currentFinding) return;
       const newImages = (currentFinding.images || []).filter((img) => {
-        const id = typeof img === "string" ? img.split("/").pop()?.split(".")[0] || img : img.public_id;
+        const id = typeof img === "string" ? img.split("/").pop()?.split(".")[0] || img : String(img);
         return id !== publicId;
       });
       await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);

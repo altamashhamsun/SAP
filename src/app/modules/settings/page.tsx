@@ -145,7 +145,7 @@ export default function SettingsPage() {
 
       if (selectedBucket) {
         const { data: files } = await supabase.storage.from(selectedBucket).list("", { limit: 1000 });
-        setStorageFiles(files || []);
+        setStorageFiles((files || []).map((f) => ({ ...f, id: f.id || f.name })));
       } else if (bucketNames.length > 0) {
         setSelectedBucket(bucketNames[0]);
         return;

@@ -357,7 +357,7 @@ export default function AuditReports() {
                           <div style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.5rem", color: "#333" }}>Evidence Images:</div>
                           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                             {(dd.finding!.images || []).map((img, i) => {
-                              const imgUrl = typeof img === "string" ? img : img.url;
+                              const imgUrl = typeof img === "string" ? img : String(img);
                               return (
                                 <a key={i} href={imgUrl} target="_blank" rel="noopener noreferrer">
                                   <img src={imgUrl} alt={`Evidence ${i + 1}`}
