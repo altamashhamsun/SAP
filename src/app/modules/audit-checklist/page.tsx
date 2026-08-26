@@ -78,6 +78,7 @@ export default function AuditChecklist() {
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [saveStatuses, setSaveStatuses] = useState<Record<string, "idle" | "saving" | "saved">>({});
 
   const router = useRouter();
   const supabase = createClient();
@@ -150,6 +151,9 @@ export default function AuditChecklist() {
   };
 
   const saveChecklist = useCallback(async (planId: string, deptId: string, listType: string, items: string[]) => {
+    const key = `${planId}|${deptId}`;
+    setSaveStatuses((prev) => ({ ...prev, [key]: "saving" }));
+
     const existing = checklists.find(
       (c) => c.audit_plan_id === planId && c.department_id === deptId
     );
@@ -184,6 +188,18 @@ export default function AuditChecklist() {
         setChecklists((prev) => [...prev, data as ChecklistItem]);
       }
     }
+
+    setSaveStatuses((prev) => ({ ...prev, [key]: "saved" }));
+    setTimeout(() => {
+      setSaveStatuses((prev) => {
+        if (prev[key] === "saved") {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        }
+        return prev;
+      });
+    }, 1500);
   }, [checklists, supabase, selectedGroup]);
 
   const debouncedSave = (planId: string, deptId: string, listType: string, items: string[]) => {
@@ -355,6 +371,12 @@ export default function AuditChecklist() {
                         <span className="sap-expand-btn">{isExpanded ? "▼" : "▶"}</span>
                         <span className="sap-dept-tag">{dept?.code || "—"}</span>
                         <span style={{ fontWeight: 500 }}>{dept?.name || "—"}</span>
+                        {saveStatuses[`${selectedGroup.plan.id}|${audit.department_id}`] && (
+                          <span className={`sap-autosave-status ${saveStatuses[`${selectedGroup.plan.id}|${audit.department_id}`]}`}>
+                            {saveStatuses[`${selectedGroup.plan.id}|${audit.department_id}`] === "saving" && "Saving..."}
+                            {saveStatuses[`${selectedGroup.plan.id}|${audit.department_id}`] === "saved" && "Saved"}
+                          </span>
+                        )}
                       </div>
                       <span style={{ fontSize: "0.8rem", color: "#999" }}>
                         {items.length > 0 ? `${items.length} point${items.length !== 1 ? "s" : ""}` : "No points yet"}
