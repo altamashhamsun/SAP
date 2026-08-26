@@ -393,21 +393,25 @@ export default function FindingsObservations() {
     }
   };
 
-  const removeImage = async (findingId: string, publicId: string) => {
-    setDeletingImage(publicId);
+  const removeImage = async (findingId: string, imageUrl: string) => {
+    setDeletingImage(imageUrl);
     try {
+      const parts = imageUrl.split("/upload/");
+      let publicId = imageUrl.split("/").pop()?.split(".")[0] || "";
+      if (parts.length > 1) {
+        const afterUpload = parts[1].replace(/^[^/]+\//, "").replace(/\.[^.]+$/, "");
+        publicId = afterUpload;
+      }
+
       await fetch("/api/cloudinary", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ public_id: publicId }),
-      });
+      }).catch(() => {});
 
       const currentFinding = findings.find((f) => f.id === findingId);
       if (!currentFinding) return;
-      const newImages = (currentFinding.images || []).filter((img) => {
-        const id = typeof img === "string" ? img.split("/").pop()?.split(".")[0] || img : String(img);
-        return id !== publicId;
-      });
+      const newImages = (currentFinding.images || []).filter((img) => img !== imageUrl);
       await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
 
       await fetchAll();
@@ -634,13 +638,13 @@ export default function FindingsObservations() {
                                   {(dd.finding.images || []).length > 0 && (
                                     <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                                       {(dd.finding.images || []).map((img, i) => {
-                                        const imgObj = typeof img === "string" ? { url: img, public_id: img } : img;
+                                        const imgUrl = typeof img === "string" ? img : String(img);
                                         return (
                                           <div key={i} style={{ position: "relative" }}>
-                                            <img src={imgObj.url} alt={`Evidence ${i + 1}`}
+                                            <img src={imgUrl} alt={`Evidence ${i + 1}`}
                                               style={{ width: 100, height: 100, objectFit: "cover", borderRadius: "6px", border: "1px solid var(--sap-border)" }} />
-                                            <button onClick={() => removeImage(dd.finding!.id, imgObj.public_id)} disabled={deletingImage === imgObj.public_id}
-                                              style={{ position: "absolute", top: -6, right: -6, background: "#dc2626", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: "0.7rem", cursor: "pointer" }}>{deletingImage === imgObj.public_id ? "..." : "✕"}</button>
+                                            <button onClick={() => removeImage(dd.finding!.id, imgUrl)} disabled={deletingImage === imgUrl}
+                                              style={{ position: "absolute", top: -6, right: -6, background: "#dc2626", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: "0.7rem", cursor: "pointer" }}>{deletingImage === imgUrl ? "..." : "✕"}</button>
                                           </div>
                                         );
                                       })}
