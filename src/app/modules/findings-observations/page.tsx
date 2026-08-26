@@ -362,8 +362,10 @@ export default function FindingsObservations() {
         .eq("id", findingId);
 
       setSuccess("Image uploaded successfully");
-      setTimeout(() => setSuccess(""), 2000);
-      router.refresh();
+      setTimeout(() => {
+        setSuccess("");
+        window.location.reload();
+      }, 500);
     } catch (err) {
       setError(`Upload failed: ${err}`);
     }
@@ -384,7 +386,7 @@ export default function FindingsObservations() {
       const newImages = (currentFinding.images || []).filter((img) => img.public_id !== publicId);
       await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
 
-      router.refresh();
+      window.location.reload();
     } catch (err) {
       setError(`Delete failed: ${err}`);
     }
