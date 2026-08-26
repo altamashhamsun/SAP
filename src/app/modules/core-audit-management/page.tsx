@@ -111,7 +111,7 @@ export default function CoreAuditManagement() {
     { icon: "scheduling", title: "Audit Scheduling", href: "/modules/audit-scheduling" },
     { icon: "checklist", title: "Audit Checklists", href: "/modules/audit-checklist" },
     { icon: "findings", title: "Findings & Observations Log", href: "/modules/findings-observations" },
-    { icon: "reports", title: "Audit Reports & Sign-off", href: "#" },
+    { icon: "reports", title: "Audit Reports & Sign-off", href: "/modules/audit-reports" },
   ];
 
   return (

@@ -1530,3 +1530,157 @@ th {
   margin: 0;
   line-height: 1.4;
 }
+
+/* Audit Reports */
+.sap-report-printable {
+  background: #fff;
+}
+
+.sap-report-header {
+  text-align: center;
+  padding: 2rem 1.5rem 1.5rem;
+  border-bottom: 3px solid var(--sap-blue);
+  margin-bottom: 1.5rem;
+}
+
+.sap-report-title {
+  font-size: 1.5rem;
+  color: var(--sap-dark-blue);
+  margin: 0.75rem 0;
+}
+
+.sap-report-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 2rem;
+  text-align: left;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.sap-report-section {
+  padding: 0 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.sap-report-section h2 {
+  font-size: 1.1rem;
+  color: var(--sap-dark-blue);
+  border-bottom: 2px solid #e5e5e5;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.sap-report-plan-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sap-report-field h4 {
+  font-size: 0.85rem;
+  color: var(--sap-blue);
+  margin: 0 0 0.25rem;
+}
+
+.sap-report-field p {
+  font-size: 0.9rem;
+  color: var(--sap-text);
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.sap-report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.sap-summary-card {
+  text-align: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid var(--sap-blue);
+}
+
+.sap-summary-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--sap-blue);
+}
+
+.sap-summary-label {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+.sap-report-dept-findings {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.sap-report-dept-findings:last-child {
+  border-bottom: none;
+}
+
+.sap-report-dept-findings h3 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.sap-report-standards {
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 0.75rem;
+}
+
+.sap-report-signoff {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.sap-report-signoff-blank {
+  padding: 1.5rem;
+}
+
+.sap-signoff-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+@media print {
+  .sap-no-print {
+    display: none !important;
+  }
+  .sap-dashboard {
+    padding: 0;
+    background: #fff;
+  }
+  .sap-dashboard-content {
+    padding: 0;
+  }
+  .sap-report-printable {
+    box-shadow: none;
+    border: none;
+  }
+  .sap-finding-card {
+    break-inside: avoid;
+  }
+  .sap-report-section {
+    break-inside: avoid;
+  }
+}
