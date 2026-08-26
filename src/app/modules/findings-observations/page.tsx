@@ -359,7 +359,9 @@ export default function FindingsObservations() {
         .update({ images: newImages })
         .eq("id", findingId);
 
-      await fetchAll();
+      setFindings((prev) =>
+        prev.map((f) => (f.id === findingId ? { ...f, images: newImages } : f))
+      );
       setSuccess("Image uploaded");
       setTimeout(() => setSuccess(""), 2000);
     } catch (err) {
@@ -380,7 +382,10 @@ export default function FindingsObservations() {
       if (!currentFinding) return;
       const newImages = (currentFinding.images || []).filter((img) => img.public_id !== publicId);
       await supabase.from("audit_findings").update({ images: newImages }).eq("id", findingId);
-      await fetchAll();
+
+      setFindings((prev) =>
+        prev.map((f) => (f.id === findingId ? { ...f, images: newImages } : f))
+      );
     } catch (err) {
       setError(`Delete failed: ${err}`);
     }
