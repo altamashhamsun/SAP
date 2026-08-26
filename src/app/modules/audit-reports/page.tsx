@@ -271,6 +271,7 @@ export default function AuditReports() {
                 <div className="sap-report-meta">
                   <div><strong>Branch:</strong> {selectedReport.branchCode} — {selectedReport.branchName}</div>
                   <div><strong>Duration:</strong> {selectedReport.start_date} → {selectedReport.end_date}</div>
+                  <div><strong>Audit Date:</strong> {selectedReport.departments.find((dd) => dd.checklist?.audit_date)?.checklist?.audit_date?.split("T")[0] || selectedReport.start_date}</div>
                   <div><strong>Objective:</strong> {selectedReport.objective}</div>
                   <div><strong>Departments Audited:</strong> {selectedReport.departments.length}</div>
                 </div>
@@ -315,7 +316,7 @@ export default function AuditReports() {
                 <h2>2. Audit Schedule</h2>
                 <table className="sap-table" style={{ fontSize: "0.85rem" }}>
                   <thead>
-                    <tr><th>Department</th><th>Code</th><th>ISO Standards</th><th>Audit Date</th><th>Findings</th></tr>
+                    <tr><th>Department</th><th>Code</th><th>ISO Standards</th><th>Audit Date</th></tr>
                   </thead>
                   <tbody>
                     {selectedReport.departments.map((dd) => (
@@ -324,7 +325,6 @@ export default function AuditReports() {
                         <td><span className="sap-branch-code-tag">{dd.deptCode}</span></td>
                         <td style={{ fontSize: "0.8rem" }}>{dd.standards || "—"}</td>
                         <td>{dd.checklist?.audit_date?.split("T")[0] || "—"}</td>
-                        <td>{dd.finding?.rephrased_findings?.length || 0} finding{(dd.finding?.rephrased_findings?.length || 0) !== 1 ? "s" : ""}</td>
                       </tr>
                     ))}
                   </tbody>
