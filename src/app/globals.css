@@ -931,6 +931,41 @@ body {
   color: var(--sap-dark-blue);
 }
 
+.sap-expand-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--sap-text);
+  padding: 2px 4px;
+}
+
+.sap-expand-btn:hover {
+  color: var(--sap-blue);
+}
+
+.sap-group-row {
+  background: #f8f9fa;
+  font-weight: 500;
+}
+
+.sap-sub-row {
+  background: #fff;
+}
+
+.sap-sub-row td {
+  padding-left: 1.5rem;
+}
+
+.sap-dept-tag {
+  background: #e8f0fe;
+  color: var(--sap-blue);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 .sap-textarea {
   resize: vertical;
   min-height: 80px;

@@ -58,6 +58,8 @@ export default function AuditScheduling() {
   const [editBranch, setEditBranch] = useState("");
   const [editObjective, setEditObjective] = useState("");
 
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -251,6 +253,46 @@ export default function AuditScheduling() {
     await supabase.from("audits").delete().eq("id", id);
     fetchAudits();
   };
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  interface AuditGroup {
+    key: string;
+    branch_id: string;
+    branchCode: string;
+    branchName: string;
+    objective: string;
+    start_date: string;
+    end_date: string;
+    audits: Audit[];
+  }
+
+  const auditGroups: AuditGroup[] = useMemo(() => {
+    const map = new Map<string, AuditGroup>();
+    for (const a of audits) {
+      const gKey = `${a.branch_id}|${a.start_date}|${a.end_date}|${a.objective}`;
+      if (!map.has(gKey)) {
+        map.set(gKey, {
+          key: gKey,
+          branch_id: a.branch_id,
+          branchCode: a.branches?.code || "—",
+          branchName: a.branches?.name || "—",
+          objective: a.objective,
+          start_date: a.start_date,
+          end_date: a.end_date,
+          audits: [],
+        });
+      }
+      map.get(gKey)!.audits.push(a);
+    }
+    return Array.from(map.values());
+  }, [audits]);
 
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -464,23 +506,42 @@ export default function AuditScheduling() {
             <div className="sap-table-wrap">
               <table className="sap-table">
                 <thead>
-                  <tr><th>Branch Code</th><th>Branch</th><th>Department</th><th>Objective</th><th>Duration</th><th>Actions</th></tr>
+                  <tr><th></th><th>Branch Code</th><th>Branch</th><th>Departments</th><th>Objective</th><th>Duration</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {audits.map((audit) => (
-                    <tr key={audit.id}>
-                      <td><span className="sap-branch-code-tag">{audit.branches?.code || "—"}</span></td>
-                      <td>{audit.branches?.name || "—"}</td>
-                      <td>{audit.departments?.name || "—"}</td>
-                      <td>{audit.objective}</td>
-                      <td>{audit.start_date} → {audit.end_date}</td>
-                      <td>
-                        <div className="sap-inline-actions">
-                          <button className="sap-action-btn" onClick={() => startEditAudit(audit)}>Edit</button>
-                          <button className="sap-action-btn sap-action-delete" onClick={() => deleteAudit(audit.id)}>Delete</button>
-                        </div>
-                      </td>
-                    </tr>
+                  {auditGroups.map((group) => (
+                    <React.Fragment key={group.key}>
+                      <tr className="sap-group-row">
+                        <td>
+                          <button className="sap-expand-btn" onClick={() => toggleGroup(group.key)}>
+                            {expandedGroups.has(group.key) ? "▼" : "▶"}
+                          </button>
+                        </td>
+                        <td><span className="sap-branch-code-tag">{group.branchCode}</span></td>
+                        <td>{group.branchName}</td>
+                        <td>{group.audits.length} dept{group.audits.length > 1 ? "s" : ""}</td>
+                        <td>{group.objective}</td>
+                        <td>{group.start_date} → {group.end_date}</td>
+                        <td>
+                          <div className="sap-inline-actions">
+                            <button className="sap-action-btn" onClick={() => startEditAudit(group.audits[0])}>Edit</button>
+                            <button className="sap-action-btn sap-action-delete" onClick={() => { for (const a of group.audits) deleteAudit(a.id); }}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedGroups.has(group.key) && group.audits.map((audit) => (
+                        <tr key={audit.id} className="sap-sub-row">
+                          <td></td>
+                          <td></td>
+                          <td></td>
+                          <td><span className="sap-dept-tag">{audit.departments?.code || "—"} — {audit.departments?.name || "—"}</span></td>
+                          <td colSpan={2}></td>
+                          <td>
+                            <button className="sap-action-btn sap-action-delete" onClick={() => deleteAudit(audit.id)}>Remove</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
