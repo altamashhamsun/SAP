@@ -27,36 +27,11 @@ interface PerfRow {
   rate: number;
 }
 
-type Period = "week" | "month" | "year" | "all";
-
-const periodOptions: { key: Period; label: string }[] = [
-  { key: "week", label: "This Week" },
-  { key: "month", label: "This Month" },
-  { key: "year", label: "This Year" },
-  { key: "all", label: "All Time" },
-];
-
-function periodRange(period: Period): { from: string | null; to: string } {
-  const now = new Date();
-  const to = now.toISOString().split("T")[0];
-  if (period === "all") return { from: null, to };
-  const start = new Date(now);
-  if (period === "week") {
-    const day = now.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    start.setDate(now.getDate() - diff);
-  } else if (period === "month") {
-    start.setDate(1);
-  } else {
-    start.setMonth(0, 1);
-  }
-  return { from: start.toISOString().split("T")[0], to };
-}
-
 export default function ReportingAnalytics() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<Period>("week");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [ncrs, setNcrs] = useState<NcrRecord[]>([]);
@@ -83,13 +58,14 @@ export default function ReportingAnalytics() {
   }, []);
 
   const filteredNcrs = useMemo(() => {
-    const { from } = periodRange(period);
-    if (!from) return ncrs;
+    if (!dateFrom && !dateTo) return ncrs;
     return ncrs.filter((n) => {
       const d = n.opening_ncs || "";
-      return d >= from;
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
     });
-  }, [ncrs, period]);
+  }, [ncrs, dateFrom, dateTo]);
 
   const rankBranches = useMemo<PerfRow[]>(() => {
     const map = new Map<string, PerfRow>();
@@ -154,7 +130,7 @@ export default function ReportingAnalytics() {
 
   const rateColor = (rate: number) => (rate >= 70 ? "#16a34a" : rate >= 40 ? "#e97025" : "#dc2626");
 
-  const RankingTable = ({ rows, periodLabel, showBranch }: { rows: PerfRow[]; periodLabel: string; showBranch?: boolean }) => {
+  const RankingTable = ({ rows, showBranch }: { rows: PerfRow[]; showBranch?: boolean }) => {
     if (rows.length === 0) return <p className="sap-empty-msg">No NCRs in this period.</p>;
     const maxRate = Math.max(...rows.map((r) => r.rate), 1);
     return (
@@ -228,30 +204,22 @@ export default function ReportingAnalytics() {
       <div className="sap-dashboard-content">
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
           <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0a2540" }}>Performance Period:</span>
-          <div style={{ display: "flex", gap: "0.35rem", background: "#eef2f7", padding: "0.25rem", borderRadius: "8px" }}>
-            {periodOptions.map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => setPeriod(opt.key)}
-                style={{
-                  padding: "0.4rem 1rem",
-                  fontSize: "0.8rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  borderRadius: "6px",
-                  border: "1px solid transparent",
-                  background: period === opt.key ? "#0070f3" : "transparent",
-                  color: period === opt.key ? "#fff" : "#444",
-                  transition: "all 0.15s",
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+            style={{ padding: "0.35rem 0.5rem", fontSize: "0.8rem", border: "1px solid #d9d9d9", borderRadius: "6px", background: "#fff" }} />
+          <span style={{ fontSize: "0.8rem", color: "#999" }}>to</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+            style={{ padding: "0.35rem 0.5rem", fontSize: "0.8rem", border: "1px solid #d9d9d9", borderRadius: "6px", background: "#fff" }} />
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(""); setDateTo(""); }}
+              style={{ padding: "0.35rem 0.75rem", fontSize: "0.75rem", background: "#f5f5f5", border: "1px solid #d9d9d9", borderRadius: "6px", cursor: "pointer", color: "#666" }}>
+              Clear
+            </button>
+          )}
           {bestBranch && (
             <span style={{ fontSize: "0.75rem", color: "#888" }}>
-              Showing NCRs opened {periodRange(period).from ? `since ${periodRange(period).from}` : "in all time"}.
+              {dateFrom || dateTo
+                ? `Showing NCRs opened ${dateFrom ? `from ${dateFrom}` : ""}${dateFrom && dateTo ? " " : ""}${dateTo ? `to ${dateTo}` : ""}.`
+                : "Showing NCRs opened in all time."}
             </span>
           )}
         </div>
@@ -286,20 +254,20 @@ export default function ReportingAnalytics() {
         <div style={{ background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "12px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
           <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid var(--sap-border)", background: "#f8fafc" }}>
             <h3 style={{ margin: 0, fontSize: "1rem", color: "#0a2540" }}>Branch Performance (Best First)</h3>
-            <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "0.15rem" }}>Ranked by resolved NCRs <span style={{ fontWeight: 700 }}>÷</span> observed NCRs ({periodOptions.find((p) => p.key === period)?.label})</div>
+            <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "0.15rem" }}>Ranked by resolved NCRs <span style={{ fontWeight: 700 }}>÷</span> observed NCRs{(dateFrom || dateTo) ? ` (${dateFrom || "start"} to ${dateTo || "today"})` : ""}</div>
           </div>
           <div style={{ overflowX: "auto", padding: "0.75rem" }}>
-            <RankingTable rows={rankBranches} periodLabel={periodOptions.find((p) => p.key === period)?.label || ""} />
+            <RankingTable rows={rankBranches} />
           </div>
         </div>
 
         <div style={{ background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "12px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", marginTop: "1.5rem" }}>
           <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid var(--sap-border)", background: "#f8fafc" }}>
             <h3 style={{ margin: 0, fontSize: "1rem", color: "#0a2540" }}>Department Performance across All Branches (Best First)</h3>
-            <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "0.15rem" }}>Ranked by resolved NCRs <span style={{ fontWeight: 700 }}>÷</span> observed NCRs ({periodOptions.find((p) => p.key === period)?.label})</div>
+            <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "0.15rem" }}>Ranked by resolved NCRs <span style={{ fontWeight: 700 }}>÷</span> observed NCRs{(dateFrom || dateTo) ? ` (${dateFrom || "start"} to ${dateTo || "today"})` : ""}</div>
           </div>
           <div style={{ overflowX: "auto", padding: "0.75rem" }}>
-            <RankingTable rows={rankDepartments} periodLabel={periodOptions.find((p) => p.key === period)?.label || ""} showBranch />
+            <RankingTable rows={rankDepartments} showBranch />
           </div>
         </div>
       </div>
