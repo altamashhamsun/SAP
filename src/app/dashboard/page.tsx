@@ -177,7 +177,7 @@ export default function Dashboard() {
     { icon: "supplier", title: "Supplier/Vendor Quality", href: "#" },
     { icon: "branches", title: "Branches & Departments", href: "/modules/branches" },
     { icon: "operational", title: "Operational Add-ons", href: "#" },
-    { icon: "reporting", title: "Reporting & Analytics", href: "#" },
+    { icon: "reporting", title: "Reporting & Analytics", href: "/modules/reporting-analytics" },
     { icon: "admin", title: "System/Admin", href: "#" },
     { icon: "storage", title: "Storage", href: "/modules/storage" },
     { icon: "settings", title: "Settings", href: "/modules/settings" },
