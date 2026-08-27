@@ -34,12 +34,10 @@ interface DeptWithNcrs {
   ncrs: NcrRecord[];
 }
 
-const statusOptions = ["Not Resolved", "In Progress", "Resolved", "Closed"] as const;
+const statusOptions = ["Not Resolved", "Resolved"] as const;
 const statusColors: Record<string, { bg: string; border: string; text: string }> = {
   "Not Resolved": { bg: "#fef2f2", border: "#dc2626", text: "#dc2626" },
-  "In Progress": { bg: "#eff6ff", border: "#2563eb", text: "#2563eb" },
   "Resolved": { bg: "#f0fdf4", border: "#16a34a", text: "#16a34a" },
-  "Closed": { bg: "#f3f4f6", border: "#6b7280", text: "#6b7280" },
 };
 
 export default function NcrPage() {
@@ -427,8 +425,8 @@ function NcrTable({ ncrs, updatingNcr, updateNcr, supabase, branches, department
             <th style={thStyle}>ISO Standard</th>
             <th style={thStyle}>Clause #</th>
             <th style={thStyle}>Clause Name</th>
-            <th style={thStyle}>Opening NCs</th>
-            <th style={thStyle}>Closing NCs</th>
+            <th style={thStyle}>Opening Date</th>
+            <th style={thStyle}>Closing Date</th>
             <th style={{ ...thStyle, minWidth: "180px" }}>Corrective Action</th>
             <th style={{ ...thStyle, minWidth: "180px" }}>Preventive Action</th>
             <th style={thStyle}>Status</th>
