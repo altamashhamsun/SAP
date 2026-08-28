@@ -2,35 +2,37 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import React from "react";
 import Link from "next/link";
 
 interface Branch { id: string; name: string; code: string; }
-interface Department { id: string; name: string; code: string; branch_id: string; }
 
-const categories = ["Process", "Documentation", "Product", "Service", "Safety", "Equipment", "Other"] as const;
-const severities = ["Critical", "Major", "Minor"] as const;
+interface Round {
+  id: string;
+  branch_id: string;
+  date: string;
+  round_number: number;
+  content: string;
+  ended_at: string | null;
+}
 
 export default function IssueNoted() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
 
-  const [title, setTitle] = useState("");
   const [branchId, setBranchId] = useState("");
-  const [deptId, setDeptId] = useState("");
-  const [category, setCategory] = useState<string>(categories[0]);
-  const [severity, setSeverity] = useState<string>(severities[0]);
-  const [description, setDescription] = useState("");
-  const [notedDate, setNotedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [noteDate, setNoteDate] = useState(new Date().toISOString().split("T")[0]);
+  const [rounds, setRounds] = useState<Round[]>([]);
+  const [dayEnded, setDayEnded] = useState(false);
+  const [roundsLoaded, setRoundsLoaded] = useState(false);
 
-  const [submitting, setSubmitting] = useState(false);
+  const [saveState, setSaveState] = useState<{ spin: boolean; msg: string }>({ spin: false, msg: "" });
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
+  const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const router = useRouter();
   const supabase = createClient();
 
@@ -39,60 +41,111 @@ export default function IssueNoted() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       setUser(user);
-      const [bRes, dRes] = await Promise.all([
-        supabase.from("branches").select("id,name,code").order("code"),
-        supabase.from("departments").select("id,name,code,branch_id").order("code"),
-      ]);
+      const bRes = await supabase.from("branches").select("id,name,code").order("code");
       if (bRes.data) setBranches(bRes.data);
-      if (dRes.data) setDepartments(dRes.data);
       setLoading(false);
     };
     init();
   }, []);
 
+  const loadRounds = async (bid: string, date: string) => {
+    setRoundsLoaded(false);
+    setRounds([]);
+    setDayEnded(false);
+    const { data } = await supabase
+      .from("qa_daily_rounds")
+      .select("*")
+      .eq("branch_id", bid)
+      .eq("date", date)
+      .order("round_number", { ascending: true });
+    let rows = (data || []) as Round[];
+    if (rows.length === 0) {
+      const { data: created, error: insErr } = await supabase.from("qa_daily_rounds").insert({
+        branch_id: bid,
+        date,
+        round_number: 1,
+        content: "",
+      }).select();
+      if (insErr) {
+        setError(`Failed to create notepad: ${insErr.message}`);
+      } else if (created) {
+        rows = created as Round[];
+      }
+    }
+    setRounds(rows);
+    setDayEnded(rows.length > 0 && rows.some((r) => !!r.ended_at));
+    setRoundsLoaded(true);
+  };
+
+  const handleBranchChange = (bid: string) => {
+    setBranchId(bid);
+    if (bid) loadRounds(bid, noteDate);
+  };
+
+  const handleDateChange = (date: string) => {
+    setNoteDate(date);
+    if (branchId) loadRounds(branchId, date);
+  };
+
+  const saveRound = async (roundId: string, content: string) => {
+    setSaveState({ spin: true, msg: "Saving..." });
+    const { error: uErr } = await supabase
+      .from("qa_daily_rounds")
+      .update({ content, updated_at: new Date().toISOString() })
+      .eq("id", roundId);
+    if (uErr) {
+      setError(`Save failed: ${uErr.message}`);
+      setSaveState({ spin: false, msg: "Save failed" });
+      return;
+    }
+    setSaveState({ spin: false, msg: "Saved ✓" });
+    setTimeout(() => setSaveState((s) => (s.msg === "Saved ✓" ? { spin: false, msg: "" } : s)), 2000);
+  };
+
+  const handleTextChange = (roundId: string, value: string) => {
+    setRounds((prev) => prev.map((r) => (r.id === roundId ? { ...r, content: value } : r)));
+    const existing = saveTimers.current.get(roundId);
+    if (existing) clearTimeout(existing);
+    saveTimers.current.set(roundId, setTimeout(() => saveRound(roundId, value), 1200));
+  };
+
+  const addRound = async () => {
+    const nextNumber = rounds.length > 0 ? rounds[rounds.length - 1].round_number + 1 : 1;
+    const { data: created, error: insErr } = await supabase.from("qa_daily_rounds").insert({
+      branch_id: branchId,
+      date: noteDate,
+      round_number: nextNumber,
+      content: "",
+    }).select();
+    if (insErr) {
+      setError(`Failed to add round: ${insErr.message}`);
+      return;
+    }
+    if (created) {
+      setRounds((prev) => [...prev, ...(created as Round[])]);
+    }
+  };
+
+  const endDay = async () => {
+    if (!window.confirm(`End the day for ${noteDate}? You will not be able to edit these notepads afterwards.`)) return;
+    const now = new Date().toISOString();
+    const { error: uErr } = await supabase
+      .from("qa_daily_rounds")
+      .update({ ended_at: now, updated_at: now })
+      .eq("branch_id", branchId)
+      .eq("date", noteDate);
+    if (uErr) {
+      setError(`Failed to end day: ${uErr.message}`);
+      return;
+    }
+    setRounds((prev) => prev.map((r) => ({ ...r, ended_at: now })));
+    setDayEnded(true);
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) { setError("Title is required"); return; }
-    if (!description.trim()) { setError("Description is required"); return; }
-    setSubmitting(true);
-    setError("");
-    setSuccess("");
-
-    const { count: countRes } = await supabase
-      .from("quality_issues")
-      .select("id", { count: "exact", head: true });
-    const nextNum = (countRes || 0) + 1;
-    const issueNumber = `QA-${String(nextNum).padStart(3, "0")}`;
-
-    const { error: dbErr } = await supabase.from("quality_issues").insert({
-      issue_number: issueNumber,
-      title: title.trim(),
-      description: description.trim(),
-      source: "Internal",
-      category,
-      severity,
-      status: "Noted",
-      branch_id: branchId || null,
-      department_id: deptId || null,
-      noted_date: notedDate,
-    });
-
-    if (dbErr) {
-      setError(`Failed to save issue: ${dbErr.message}`);
-      setSubmitting(false);
-      return;
-    }
-
-    setSuccess(`${issueNumber} saved successfully!`);
-    setTitle("");
-    setDescription("");
-    setSubmitting(false);
   };
 
   if (loading) {
@@ -150,64 +203,114 @@ export default function IssueNoted() {
 
       <div className="sap-dashboard-content">
         {error && <div className="sap-error-message" style={{ marginBottom: "1rem" }}><span>{error}</span><button onClick={() => setError("")} style={{ marginLeft: "0.5rem", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>✕</button></div>}
-        {success && <div className="sap-success-message" style={{ marginBottom: "1rem" }}><span>{success}</span></div>}
 
-        <form onSubmit={handleSubmit} style={{
-          background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "12px",
-          padding: "1.5rem 2rem", maxWidth: "700px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-          display: "flex", flexDirection: "column", gap: "1rem",
-        }}>
-          <div>
-            <label style={labelStyle}>Issue Title *</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Missing calibration records" style={inputStyle} />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.75rem" }}>
-            <div>
-              <label style={labelStyle}>Noted Date</label>
-              <input type="date" value={notedDate} onChange={(e) => setNotedDate(e.target.value)} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Category</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle}>
-                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Severity</label>
-              <select value={severity} onChange={(e) => setSeverity(e.target.value)} style={inputStyle}>
-                {severities.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Branch</label>
-              <select value={branchId} onChange={(e) => { setBranchId(e.target.value); setDeptId(""); }} style={inputStyle}>
-                <option value="">— Select —</option>
-                {branches.map((b) => <option key={b.id} value={b.id}>{b.code} · {b.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Department</label>
-            <select value={deptId} onChange={(e) => setDeptId(e.target.value)} disabled={!branchId} style={{ ...inputStyle, opacity: branchId ? 1 : 0.5 }}>
-              <option value="">{branchId ? "— Select —" : "Select a branch first"}</option>
-              {departments.filter((d) => !branchId || d.branch_id === branchId).map((d) => <option key={d.id} value={d.id}>{d.code} · {d.name}</option>)}
+        <div style={{ display: "flex", alignItems: "flex-end", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+          <div style={{ minWidth: "240px" }}>
+            <label style={labelStyle}>Branch *</label>
+            <select value={branchId} onChange={(e) => handleBranchChange(e.target.value)} style={inputStyle}>
+              <option value="">— Select Branch —</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.code} · {b.name}</option>)}
             </select>
           </div>
-
           <div>
-            <label style={labelStyle}>Issue Description *</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5}
-              placeholder="Describe the issue observed..." style={{ ...inputStyle, resize: "vertical" }} />
+            <label style={labelStyle}>Date *</label>
+            <input
+              type="date"
+              value={noteDate}
+              onChange={(e) => handleDateChange(e.target.value)}
+              style={inputStyle}
+            />
           </div>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            {saveState.msg && (
+              <span style={{ fontSize: "0.78rem", color: saveState.spin ? "#e97025" : "#16a34a", fontWeight: 600 }}>
+                {saveState.spin ? "⏳" : ""} {saveState.msg}
+              </span>
+            )}
+            {branchId && (
+              <button
+                onClick={endDay}
+                disabled={!roundsLoaded || dayEnded}
+                className="sap-action-btn"
+                style={{ fontWeight: 700, background: dayEnded ? "#9ca3af" : "#dc2626", borderColor: dayEnded ? "#9ca3af" : "#b91c1c" }}
+              >
+                {dayEnded ? "Day Ended" : "End Day"}
+              </button>
+            )}
+          </div>
+        </div>
 
-          <div>
-            <button type="submit" disabled={submitting} className="sap-action-btn" style={{ fontWeight: 700 }}>
-              {submitting ? "Saving..." : "Save Issue"}
-            </button>
+        {!branchId ? (
+          <div className="sap-plans-list">
+            <div className="sap-plan-card" style={{ textAlign: "center", padding: "3rem" }}>
+              <div style={{ fontSize: "0.9rem", color: "#999" }}>
+                Select a branch and a date to open the daily notepad.
+              </div>
+            </div>
           </div>
-        </form>
+        ) : !roundsLoaded ? (
+          <div className="sap-plans-list">
+            <div className="sap-plan-card" style={{ textAlign: "center", padding: "3rem" }}>
+              <span style={{ fontSize: "0.85rem", color: "#666" }}>Loading notepad…</span>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {dayEnded && (
+              <div className="sap-error-message" style={{ marginBottom: "1rem", background: "#f3f4f6", borderColor: "#9ca3af" }}>
+                <span style={{ color: "#374151" }}>This day has been ended on {noteDate}. Notepads are locked.</span>
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              {rounds.map((round) => (
+                <div key={round.id} style={{
+                  background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "12px",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden",
+                }}>
+                  <div style={{
+                    padding: "0.75rem 1.25rem", borderBottom: "1px solid var(--sap-border)", background: "#f8fafc",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                      <span className="sap-dept-tag">R{round.round_number}</span>
+                      <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0a2540" }}>
+                        Round {round.round_number}
+                      </span>
+                    </div>
+                    {round.ended_at && <span style={{ fontSize: "0.7rem", color: "#9ca3af" }}>🔒 ended {new Date(round.ended_at).toLocaleString()}</span>}
+                  </div>
+                  <textarea
+                    value={round.content}
+                    disabled={dayEnded}
+                    onChange={(e) => handleTextChange(round.id, e.target.value)}
+                    onBlur={(e) => {
+                      const existing = saveTimers.current.get(round.id);
+                      if (existing) { clearTimeout(existing); saveTimers.current.delete(round.id); }
+                      saveRound(round.id, e.target.value);
+                    }}
+                    placeholder="Write all issues observed today just like a notepad..."
+                    rows={10}
+                    style={{
+                      width: "100%", padding: "1rem 1.25rem", fontSize: "0.88rem", lineHeight: 1.6,
+                      border: "none", outline: "none", resize: "vertical", background: dayEnded ? "#f9fafb" : "#fff",
+                      color: dayEnded ? "#6b7280" : "#111", fontFamily: "inherit",
+                      minHeight: "200px",
+                    }}
+                  />
+                </div>
+              ))}
+
+              {!dayEnded && (
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <button onClick={addRound} className="sap-action-btn" style={{ fontWeight: 700 }}>
+                    + Add Round {rounds.length + 1}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
