@@ -49,6 +49,9 @@ export default function IssuesList() {
   const [entries, setEntries] = useState<IssueEntry[]>([]);
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [dateFrom, setDateFrom] = useState(new Date().toISOString().split("T")[0]);
+  const [dateTo, setDateTo] = useState(new Date().toISOString().split("T")[0]);
+  const [branchFilter, setBranchFilter] = useState("");
   const [generating, setGenerating] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -75,19 +78,27 @@ export default function IssuesList() {
     init();
   }, []);
 
-  const loadEntries = async (dateValue?: string) => {
-    const d = dateValue || selectedDate;
-    const { data } = await supabase
+  const loadEntries = async (from?: string, to?: string) => {
+    const f = from || dateFrom;
+    const t = to || dateTo;
+    let query = supabase
       .from("qa_issue_entries")
       .select("*")
-      .eq("date", d)
       .order("issue_number");
+    if (f) query = query.gte("date", f);
+    if (t) query = query.lte("date", t);
+    const { data } = await query;
     setEntries((data || []) as IssueEntry[]);
   };
 
   const handleDateChange = (dateValue: string) => {
     setSelectedDate(dateValue);
-    if (dateValue) loadEntries(dateValue);
+  };
+
+  const handleRangeChange = () => {
+    if (dateFrom && dateTo && dateFrom <= dateTo) {
+      loadEntries(dateFrom, dateTo);
+    }
   };
 
   const createList = async () => {
@@ -139,7 +150,9 @@ export default function IssuesList() {
       return;
     }
 
-    await loadEntries();
+    setDateFrom(selectedDate);
+    setDateTo(selectedDate);
+    await loadEntries(selectedDate, selectedDate);
     setGenerating(false);
     setSuccess(`List created for ${selectedDate} — ${data.issues.length} issues${data.issues.some((i: IssueEntry) => i.repeated) ? " (repeated issues checked)" : ""}`);
     setTimeout(() => setSuccess(""), 4000);
@@ -244,6 +257,27 @@ export default function IssuesList() {
 
   const repeatedIssues = entries.filter((e) => e.repeated);
 
+  const isDone = (status: string) => status === "Resolved" || status === "Closed";
+  const isPending = (status: string) => status === "Open" || status === "In Progress";
+
+  const branchStats = branches
+    .map((b) => {
+      const list = entries.filter((e) => e.branch_code === b.code);
+      return {
+        code: b.code,
+        name: b.name,
+        count: list.length,
+        done: list.filter((e) => isDone(e.status)).length,
+        pending: list.filter((e) => isPending(e.status)).length,
+      };
+    })
+    .filter((s) => s.count > 0);
+
+  const doneTotal = entries.filter((e) => isDone(e.status)).length;
+  const pendingTotal = entries.filter((e) => isPending(e.status)).length;
+  const visibleEntries = branchFilter ? entries.filter((e) => e.branch_code === branchFilter) : entries;
+  const visibleRepeated = visibleEntries.filter((e) => e.repeated);
+
   const thStyle: React.CSSProperties = {
     padding: "0.6rem 0.75rem", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase",
     letterSpacing: "0.05em", color: "#fff", background: "#0070f3", border: "1px solid #0060d0",
@@ -287,22 +321,36 @@ export default function IssuesList() {
         {error && <div className="sap-error-message" style={{ marginBottom: "1rem" }}><span>{error}</span><button onClick={() => setError("")} style={{ marginLeft: "0.5rem", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>✕</button></div>}
         {success && <div className="sap-success-message" style={{ marginBottom: "1rem" }}><span>{success}</span></div>}
 
-        <div style={{ display: "flex", alignItems: "flex-end", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-          <div>
-            <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#444", marginBottom: "0.25rem", display: "block" }}>Select Date</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => handleDateChange(e.target.value)}
-              style={{ padding: "0.5rem 0.65rem", fontSize: "0.85rem", border: "1px solid #d9d9d9", borderRadius: "6px", background: "#fff" }}
-            />
+        <div style={{ display: "flex", alignItems: "flex-end", gap: "1rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+            <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#666" }}>Date Range</label>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                style={{ padding: "0.45rem 0.6rem", fontSize: "0.8rem", border: "1px solid #d9d9d9", borderRadius: "6px", background: "#fff" }} />
+              <span style={{ fontSize: "0.8rem", color: "#999" }}>to</span>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                style={{ padding: "0.45rem 0.6rem", fontSize: "0.8rem", border: "1px solid #d9d9d9", borderRadius: "6px", background: "#fff" }} />
+              <button onClick={handleRangeChange} className="sap-action-btn" style={{ fontWeight: 700 }}>Apply</button>
+            </div>
           </div>
-          <button onClick={createList} disabled={generating} className="sap-action-btn" style={{ fontWeight: 700 }}>
-            {generating ? "⏳ AI is creating list..." : "Create List from this Date"}
-          </button>
+          <div style={{ width: "1px", height: "2rem", background: "#e5e7eb" }} />
+          <div>
+            <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#666", marginBottom: "0.25rem", display: "block" }}>Select Date to Create AI List</label>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => handleDateChange(e.target.value)}
+                style={{ padding: "0.45rem 0.6rem", fontSize: "0.8rem", border: "1px solid #d9d9d9", borderRadius: "6px", background: "#fff" }}
+              />
+              <button onClick={createList} disabled={generating} className="sap-action-btn" style={{ fontWeight: 700 }}>
+                {generating ? "⏳ AI is creating list..." : "Create List from this Date"}
+              </button>
+            </div>
+          </div>
           {entries.length > 0 && (
-            <span style={{ fontSize: "0.78rem", color: "#888" }}>
-              {entries.length} issues · {repeatedIssues.length} repeated
+            <span style={{ fontSize: "0.78rem", color: "#888", marginLeft: "auto" }}>
+              {entries.length} issues · {doneTotal} done · {pendingTotal} pending
             </span>
           )}
         </div>
@@ -313,13 +361,48 @@ export default function IssuesList() {
           </p>
         ) : (
           <div>
-            {repeatedIssues.length > 0 && (
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+              <div
+                onClick={() => setBranchFilter("")}
+                style={{ flex: 1, minWidth: "180px", cursor: "pointer", background: !branchFilter ? "#f0f7ff" : "#fff", border: `1px solid ${!branchFilter ? "#0070f3" : "var(--sap-border)"}`, borderRadius: "12px", padding: "1rem 1.25rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#666" }}>All Branches</span>
+                  <span style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0070f3" }}>{entries.length}</span>
+                </div>
+                <div style={{ display: "flex", gap: "0.9rem", marginTop: "0.5rem", fontSize: "0.72rem" }}>
+                  <span style={{ color: "#16a34a", fontWeight: 600 }}>✓ {doneTotal} Done</span>
+                  <span style={{ color: "#dc2626", fontWeight: 600 }}>⏳ {pendingTotal} Pending</span>
+                </div>
+              </div>
+              {branchStats.map((s) => (
+                <div
+                  key={s.code}
+                  onClick={() => setBranchFilter(branchFilter === s.code ? "" : s.code)}
+                  style={{ flex: 1, minWidth: "180px", cursor: "pointer", background: branchFilter === s.code ? "#f0f7ff" : "#fff", border: `1px solid ${branchFilter === s.code ? "#0070f3" : "var(--sap-border)"}`, borderRadius: "12px", padding: "1rem 1.25rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>
+                      <span className="sap-branch-code-tag">{s.code}</span>
+                    </span>
+                    <span style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0070f3" }}>{s.count}</span>
+                  </div>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#333", marginTop: "0.25rem" }}>{s.name}</div>
+                  <div style={{ display: "flex", gap: "0.9rem", marginTop: "0.5rem", fontSize: "0.72rem" }}>
+                    <span style={{ color: "#16a34a", fontWeight: 600 }}>✓ {s.done} Done</span>
+                    <span style={{ color: "#dc2626", fontWeight: 600 }}>⏳ {s.pending} Pending</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {visibleRepeated.length > 0 && (
               <div style={{ background: "#fffbe6", border: "1px solid #fcd34d", borderRadius: "12px", padding: "1rem 1.25rem", marginBottom: "1.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                 <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem", color: "#92400e" }}>
                   ☑ Repeated Issues Checklist (found across rounds)
                 </h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                  {repeatedIssues.map((issue) => (
+                  {visibleRepeated.map((issue) => (
                     <div key={issue.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.82rem" }}>
                       <span style={{ color: "#d97706", fontWeight: 700, marginTop: "0.1rem" }}>▢</span>
                       <div>
@@ -335,7 +418,7 @@ export default function IssuesList() {
             )}
 
             <div style={{ overflowX: "auto", borderRadius: "8px", border: "1px solid var(--sap-border)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1500px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1550px" }}>
                 <thead>
                   <tr>
                     <th style={thStyle}>☐</th>
@@ -347,14 +430,16 @@ export default function IssuesList() {
                     <th style={thStyle}>Category</th>
                     <th style={thStyle}>Minor / Major</th>
                     <th style={thStyle}>Status</th>
+                    <th style={thStyle}>Done / Pending</th>
                     <th style={{ ...thStyle, minWidth: "150px" }}>Pictures</th>
                     <th style={{ ...thStyle, width: "30px" }}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {entries.map((issue) => {
+                  {visibleEntries.map((issue) => {
                     const sc = statusColors[issue.status] || statusColors["Open"];
                     const cc = categoryColors[issue.category] || categoryColors["Non issue"];
+                    const done = isDone(issue.status);
                     return (
                       <React.Fragment key={issue.id}>
                         <tr style={{ background: issue.repeated ? "#fffbeb" : "#fff" }}>
@@ -408,6 +493,16 @@ export default function IssuesList() {
                               {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
                           </td>
+                          <td style={{ ...tdStyle, textAlign: "center", whiteSpace: "nowrap" }}>
+                            <span style={{
+                              fontSize: "0.72rem", fontWeight: 700, padding: "0.2rem 0.6rem", borderRadius: "20px", display: "inline-block",
+                              color: done ? "#16a34a" : "#dc2626",
+                              background: done ? "#f0fdf4" : "#fef2f2",
+                              border: `1px solid ${done ? "#86efac" : "#fca5a5"}`,
+                            }}>
+                              {done ? "✓ Done" : "⏳ Pending"}
+                            </span>
+                          </td>
                           <td style={tdStyle}>
                             <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", alignItems: "center" }}>
                               {issue.images && issue.images.map((img, i) => (
@@ -436,7 +531,7 @@ export default function IssuesList() {
                         </tr>
                         {expandedRows.has(issue.id) && (
                           <tr>
-                            <td colSpan={11} style={{ ...tdStyle, background: "#fafafa", padding: "1rem" }}>
+                            <td colSpan={12} style={{ ...tdStyle, background: "#fafafa", padding: "1rem" }}>
                               <div style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.3rem" }}>Full Description</div>
                               <p style={{ fontSize: "0.8rem", color: "#444", margin: "0" }}>{issue.description}</p>
                               {issue.images && issue.images.length > 0 && (
