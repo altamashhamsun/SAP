@@ -73,6 +73,13 @@ function QacIcon({ type }: { type: string }) {
         <circle cx="26" cy="14" r="2" fill="#0070f3"/>
       </svg>
     ),
+    quality: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="12" r="9" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
+        <path d="M14 21v4M10 25h8" stroke="#0070f3" strokeWidth="2" strokeLinecap="round"/>
+        <path d="M14 6l1.5 3 3.2 0.5-2.3 2.3 0.5 3.2-2.9-1.5-2.9 1.5 0.5-3.2-2.3-2.3 3.2-0.5L14 6z" stroke="#0070f3" strokeWidth="1.5" strokeLinejoin="round"/>
+      </svg>
+    ),
     reporting: (
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
         <rect x="3" y="18" width="5" height="7" rx="1" fill="#0070f3"/>
@@ -170,6 +177,7 @@ export default function Dashboard() {
   const tiles = [
     { icon: "audit", title: "Core Audit Management", href: "/modules/core-audit-management" },
     { icon: "ncr", title: "Non-Conformities & CAPAs", href: "/modules/ncr" },
+    { icon: "quality", title: "Quality Assurance", href: "/modules/quality-assurance" },
     { icon: "compliance", title: "Compliance Tracking", href: "/modules/compliance-tracking" },
     { icon: "document", title: "Document Control", href: "#" },
     { icon: "risk", title: "Risk Management", href: "#" },
