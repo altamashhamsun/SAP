@@ -181,7 +181,7 @@ export default function FinalReport() {
   td { border: 1px solid #d1d5db; padding: 6px 8px; font-size: 10.5px; vertical-align: top; }
   .num { font-weight: 700; white-space: nowrap; }
   .badge { font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 9.5px; display: inline-block; white-space: nowrap; }
-  img.thumb { width: 120px; height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
+  img.thumb { width: 180px; height: 180px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
   .footer { margin-top: 18px; font-size: 9px; color: #9ca3af; text-align: right; }
   tr { break-inside: avoid; }
 </style>
