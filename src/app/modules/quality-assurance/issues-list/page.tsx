@@ -51,7 +51,7 @@ export default function IssuesList() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [dateFrom, setDateFrom] = useState(new Date().toISOString().split("T")[0]);
   const [dateTo, setDateTo] = useState(new Date().toISOString().split("T")[0]);
-  const [branchFilter, setBranchFilter] = useState("");
+  const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   const [generating, setGenerating] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -73,14 +73,17 @@ export default function IssuesList() {
       ]);
       if (bRes.data) setBranches(bRes.data);
       if (dRes.data) setDepartments(dRes.data);
+      setDateFrom("");
+      setDateTo("");
+      await loadEntries("", "");
       setLoading(false);
     };
     init();
   }, []);
 
   const loadEntries = async (from?: string, to?: string) => {
-    const f = from || dateFrom;
-    const t = to || dateTo;
+    const f = from !== undefined ? from : dateFrom;
+    const t = to !== undefined ? to : dateTo;
     let query = supabase
       .from("qa_issue_entries")
       .select("*")
@@ -228,6 +231,12 @@ export default function IssuesList() {
     setExpandedRows(next);
   };
 
+  const toggleBranch = (code: string) => {
+    const next = new Set(expandedBranches);
+    if (next.has(code)) next.delete(code); else next.add(code);
+    setExpandedBranches(next);
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
@@ -260,23 +269,29 @@ export default function IssuesList() {
   const isDone = (status: string) => status === "Resolved" || status === "Closed";
   const isPending = (status: string) => status === "Open" || status === "In Progress";
 
-  const branchStats = branches
-    .map((b) => {
-      const list = entries.filter((e) => e.branch_code === b.code);
-      return {
-        code: b.code,
-        name: b.name,
-        count: list.length,
-        done: list.filter((e) => isDone(e.status)).length,
-        pending: list.filter((e) => isPending(e.status)).length,
-      };
-    })
-    .filter((s) => s.count > 0);
+  const unknownCodes = Array.from(new Set(entries.map((e) => e.branch_code)))
+    .filter((c) => c && !branches.some((b) => b.code === c))
+    .sort() as string[];
+
+  const branchRows = [
+    ...branches.map((b) => ({ code: b.code, name: b.name })),
+    ...unknownCodes.map((c) => ({ code: c, name: c })),
+  ];
+
+  const statFor = (code: string) => {
+    const list = entries.filter((e) => e.branch_code === code);
+    return {
+      count: list.length,
+      done: list.filter((e) => isDone(e.status)).length,
+      pending: list.filter((e) => isPending(e.status)).length,
+      major: list.filter((e) => e.severity === "Major").length,
+      minor: list.filter((e) => e.severity === "Minor").length,
+      repeated: list.filter((e) => e.repeated).length,
+    };
+  };
 
   const doneTotal = entries.filter((e) => isDone(e.status)).length;
   const pendingTotal = entries.filter((e) => isPending(e.status)).length;
-  const visibleEntries = branchFilter ? entries.filter((e) => e.branch_code === branchFilter) : entries;
-  const visibleRepeated = visibleEntries.filter((e) => e.repeated);
 
   const thStyle: React.CSSProperties = {
     padding: "0.6rem 0.75rem", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase",
@@ -344,7 +359,7 @@ export default function IssuesList() {
                 style={{ padding: "0.45rem 0.6rem", fontSize: "0.8rem", border: "1px solid #d9d9d9", borderRadius: "6px", background: "#fff" }}
               />
               <button onClick={createList} disabled={generating} className="sap-action-btn" style={{ fontWeight: 700 }}>
-                {generating ? "⏳ AI is creating list..." : "Create List from this Date"}
+                {generating ? "⏳ AI is creating list..." : `Create ${entries.some((e) => e.date === selectedDate) ? "(Regenerate) " : ""}List from this Date`}
               </button>
             </div>
           </div>
@@ -355,77 +370,107 @@ export default function IssuesList() {
           )}
         </div>
 
-        {entries.length === 0 ? (
-          <p className="sap-empty-msg">
-            No issues listed yet. Select a date and click "Create List from this Date" — the AI will read all notepad rounds of that day and build the issue list.
+        {entries.length === 0 && (
+          <p className="sap-empty-msg" style={{ marginBottom: "1.5rem" }}>
+            No issues found in the selected date range. Select a date and click "Create List from this Date" — the AI will read all notepad rounds of that day and build the issue list. Every branch is listed below with its scoreboard.
           </p>
-        ) : (
-          <div>
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
-              <div
-                onClick={() => setBranchFilter("")}
-                style={{ flex: 1, minWidth: "180px", cursor: "pointer", background: !branchFilter ? "#f0f7ff" : "#fff", border: `1px solid ${!branchFilter ? "#0070f3" : "var(--sap-border)"}`, borderRadius: "12px", padding: "1rem 1.25rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "#666" }}>All Branches</span>
-                  <span style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0070f3" }}>{entries.length}</span>
-                </div>
-                <div style={{ display: "flex", gap: "0.9rem", marginTop: "0.5rem", fontSize: "0.72rem" }}>
-                  <span style={{ color: "#16a34a", fontWeight: 600 }}>✓ {doneTotal} Done</span>
-                  <span style={{ color: "#dc2626", fontWeight: 600 }}>⏳ {pendingTotal} Pending</span>
-                </div>
-              </div>
-              {branchStats.map((s) => (
-                <div
-                  key={s.code}
-                  onClick={() => setBranchFilter(branchFilter === s.code ? "" : s.code)}
-                  style={{ flex: 1, minWidth: "180px", cursor: "pointer", background: branchFilter === s.code ? "#f0f7ff" : "#fff", border: `1px solid ${branchFilter === s.code ? "#0070f3" : "var(--sap-border)"}`, borderRadius: "12px", padding: "1rem 1.25rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span>
-                      <span className="sap-branch-code-tag">{s.code}</span>
-                    </span>
-                    <span style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0070f3" }}>{s.count}</span>
-                  </div>
-                  <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "#333", marginTop: "0.25rem" }}>{s.name}</div>
-                  <div style={{ display: "flex", gap: "0.9rem", marginTop: "0.5rem", fontSize: "0.72rem" }}>
-                    <span style={{ color: "#16a34a", fontWeight: 600 }}>✓ {s.done} Done</span>
-                    <span style={{ color: "#dc2626", fontWeight: 600 }}>⏳ {s.pending} Pending</span>
+        )}
+
+        {repeatedIssues.length > 0 && (
+          <div style={{ background: "#fffbe6", border: "1px solid #fcd34d", borderRadius: "12px", padding: "1rem 1.25rem", marginBottom: "1.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+            <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem", color: "#92400e" }}>
+              ☑ Repeated Issues Checklist (found across rounds)
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              {repeatedIssues.map((issue) => (
+                <div key={issue.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.82rem" }}>
+                  <span style={{ color: "#d97706", fontWeight: 700, marginTop: "0.1rem" }}>▢</span>
+                  <div>
+                    <span style={{ fontWeight: 700, color: "#0a2540" }}>{issue.issue_number}</span>
+                    {" — "}
+                    <span style={{ color: "#444" }}>{issue.description}</span>
+                    <span style={{ color: "#888" }}> ({issue.branch_code}{issue.department ? ` · ${issue.department}` : ""})</span>
                   </div>
                 </div>
               ))}
             </div>
+          </div>
+        )}
 
-            {visibleRepeated.length > 0 && (
-              <div style={{ background: "#fffbe6", border: "1px solid #fcd34d", borderRadius: "12px", padding: "1rem 1.25rem", marginBottom: "1.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem", color: "#92400e" }}>
-                  ☑ Repeated Issues Checklist (found across rounds)
-                </h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                  {visibleRepeated.map((issue) => (
-                    <div key={issue.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.82rem" }}>
-                      <span style={{ color: "#d97706", fontWeight: 700, marginTop: "0.1rem" }}>▢</span>
-                      <div>
-                        <span style={{ fontWeight: 700, color: "#0a2540" }}>{issue.issue_number}</span>
-                        {" — "}
-                        <span style={{ color: "#444" }}>{issue.description}</span>
-                        <span style={{ color: "#888" }}> ({issue.branch_code}{issue.department ? ` · ${issue.department}` : ""})</span>
-                      </div>
+        {branchRows.length > 0 ? (
+          branchRows.map((b) => {
+            const s = statFor(b.code);
+            const open = expandedBranches.has(b.code);
+            const list = entries.filter((e) => e.branch_code === b.code);
+            return (
+              <div key={b.code} style={{ border: "1px solid var(--sap-border)", borderRadius: "12px", marginBottom: "0.65rem", overflow: "hidden", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                <div
+                  onClick={() => toggleBranch(b.code)}
+                  style={{ cursor: "pointer", padding: "0.85rem 1.1rem", display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap", background: open ? "#f0f7ff" : "#fff", borderBottom: open ? "1px solid var(--sap-border)" : "none" }}
+                >
+                  <span style={{ color: "#0070f3", fontSize: "0.85rem", width: "1.1rem", textAlign: "center" }}>{open ? "▼" : "▶"}</span>
+                  <span className="sap-branch-code-tag">{b.code}</span>
+                  <span style={{ fontWeight: 700, color: "#0a2540", flex: 1, minWidth: "150px" }}>{b.name}</span>
+                  <div style={{ display: "flex", gap: "1.3rem", alignItems: "center" }}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "1rem", fontWeight: 800, color: "#0070f3" }}>{s.count}</div>
+                      <div style={{ fontSize: "0.62rem", color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Issues</div>
                     </div>
-                  ))}
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "1rem", fontWeight: 800, color: "#16a34a" }}>✓ {s.done}</div>
+                      <div style={{ fontSize: "0.62rem", color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Done</div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "1rem", fontWeight: 800, color: "#dc2626" }}>⏳ {s.pending}</div>
+                      <div style={{ fontSize: "0.62rem", color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Pending</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            <div style={{ overflowX: "auto", borderRadius: "8px", border: "1px solid var(--sap-border)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1550px" }}>
+                {open && (
+                  <div style={{ padding: "1rem 1.1rem", background: "#fafafa" }}>
+                    <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+                      <div style={{ background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "10px", padding: "0.55rem 1rem", minWidth: "110px" }}>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0070f3" }}>{s.count}</div>
+                        <div style={{ fontSize: "0.68rem", color: "#666", fontWeight: 600 }}>Total Issues</div>
+                      </div>
+                      <div style={{ background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "10px", padding: "0.55rem 1rem", minWidth: "110px" }}>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#16a34a" }}>✓ {s.done}</div>
+                        <div style={{ fontSize: "0.68rem", color: "#666", fontWeight: 600 }}>Done</div>
+                      </div>
+                      <div style={{ background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "10px", padding: "0.55rem 1rem", minWidth: "110px" }}>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#dc2626" }}>⏳ {s.pending}</div>
+                        <div style={{ fontSize: "0.68rem", color: "#666", fontWeight: 600 }}>Pending</div>
+                      </div>
+                      <div style={{ background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "10px", padding: "0.55rem 1rem", minWidth: "110px" }}>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#b91c1c" }}>{s.major}</div>
+                        <div style={{ fontSize: "0.68rem", color: "#666", fontWeight: 600 }}>Major</div>
+                      </div>
+                      <div style={{ background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "10px", padding: "0.55rem 1rem", minWidth: "110px" }}>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#d97706" }}>{s.minor}</div>
+                        <div style={{ fontSize: "0.68rem", color: "#666", fontWeight: 600 }}>Minor</div>
+                      </div>
+                      {s.repeated > 0 && (
+                        <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "10px", padding: "0.55rem 1rem", minWidth: "110px" }}>
+                          <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#d97706" }}>☑ {s.repeated}</div>
+                          <div style={{ fontSize: "0.68rem", color: "#92400e", fontWeight: 600 }}>Repeated</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {list.length === 0 ? (
+                      <p style={{ fontSize: "0.82rem", color: "#999", margin: "0.5rem 0" }}>
+                        No issues for {b.code} in the selected date range.
+                      </p>
+                    ) : (
+                      <div style={{ overflowX: "auto", borderRadius: "8px", border: "1px solid var(--sap-border)", background: "#fff" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "1300px" }}>
                 <thead>
                   <tr>
                     <th style={thStyle}>☐</th>
                     <th style={thStyle}>Issue #</th>
                     <th style={{ ...thStyle, minWidth: "220px" }}>Issue Description</th>
                     <th style={thStyle}>Date Noted</th>
-                    <th style={thStyle}>Branch</th>
                     <th style={thStyle}>Department</th>
                     <th style={thStyle}>Category</th>
                     <th style={thStyle}>Minor / Major</th>
@@ -436,7 +481,7 @@ export default function IssuesList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleEntries.map((issue) => {
+                  {list.map((issue) => {
                     const sc = statusColors[issue.status] || statusColors["Open"];
                     const cc = categoryColors[issue.category] || categoryColors["Non issue"];
                     const done = isDone(issue.status);
@@ -449,9 +494,6 @@ export default function IssuesList() {
                           <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "nowrap" }}>{issue.issue_number}</td>
                           <td style={{ ...tdStyle, maxWidth: "220px" }}>{issue.description}</td>
                           <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>{issue.date}</td>
-                          <td style={tdStyle}>
-                            <span className="sap-branch-code-tag">{issue.branch_code || "—"}</span>
-                          </td>
                           <td style={tdStyle}>
                             <select
                               value={issue.department}
@@ -531,7 +573,7 @@ export default function IssuesList() {
                         </tr>
                         {expandedRows.has(issue.id) && (
                           <tr>
-                            <td colSpan={12} style={{ ...tdStyle, background: "#fafafa", padding: "1rem" }}>
+                            <td colSpan={11} style={{ ...tdStyle, background: "#fafafa", padding: "1rem" }}>
                               <div style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.3rem" }}>Full Description</div>
                               <p style={{ fontSize: "0.8rem", color: "#444", margin: "0" }}>{issue.description}</p>
                               {issue.images && issue.images.length > 0 && (
@@ -556,7 +598,14 @@ export default function IssuesList() {
                 </tbody>
               </table>
             </div>
-          </div>
+          )}
+        </div>
+      )}
+    </div>
+    );
+          })
+        ) : (
+          <p className="sap-empty-msg">No branches configured yet.</p>
         )}
       </div>
     </div>
