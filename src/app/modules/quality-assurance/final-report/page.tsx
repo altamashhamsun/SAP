@@ -320,24 +320,22 @@ export default function FinalReport() {
 
       setSuccess("PDF generated — uploading…");
       const blob = doc.output("blob") as Blob;
-      const fd = new FormData();
-      fd.append("file", blob, `qa-final-report-${code}-${date}.pdf`);
-      fd.append("type", "raw");
-      fd.append("folder", "qac-reports");
-
-      const res = await fetch("/api/cloudinary", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      const path = `${code}/${date}.pdf`;
+      const { error: upErr } = await supabase.storage
+        .from("qa-reports")
+        .upload(path, blob, { contentType: "application/pdf", upsert: true });
+      if (upErr) throw upErr;
+      const url = `/api/qa/report-pdf?path=${encodeURIComponent(path)}`;
 
       const { error: insErr } = await supabase.from("qa_reports").upsert(
-        { branch_code: code, date, url: data.url, public_id: data.public_id, created_by: user?.email || null },
+        { branch_code: code, date, url, public_id: path, created_by: user?.email || null },
         { onConflict: "branch_code,date" }
       );
       if (insErr) throw insErr;
 
       setReports((prev) => [
         ...prev.filter((r) => !(r.branch_code === code && r.date === date)),
-        { branch_code: code, date, url: data.url, public_id: data.public_id, created_by: user?.email || null, created_at: new Date().toISOString() },
+        { branch_code: code, date, url, public_id: path, created_by: user?.email || null, created_at: new Date().toISOString() },
       ]);
       setSuccess(`Report saved for ${code} on ${date}. It is now view-only — delete it first if you want to regenerate.`);
       setPendingReport(null);
@@ -354,13 +352,9 @@ export default function FinalReport() {
     setError("");
     setSuccess("");
     try {
-      await fetch("/api/cloudinary", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ public_id: publicId, resource_type: "raw" }),
-      }).catch(() => null);
-      const { error: delErr } = await supabase.from("qa_reports").delete().eq("branch_code", code).eq("date", date);
-      if (delErr) throw delErr;
+      await supabase.storage.from("qa-reports").remove([publicId]);
+      const { error: dbErr } = await supabase.from("qa_reports").delete().eq("branch_code", code).eq("date", date);
+      if (dbErr) throw dbErr;
       setReports((prev) => prev.filter((r) => !(r.branch_code === code && r.date === date)));
       setSuccess("Report deleted — you can now generate a new one.");
       setPendingReport(null);
