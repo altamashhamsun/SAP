@@ -49,6 +49,10 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const [profileName, setProfileName] = useState("");
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+
   const router = useRouter();
   const supabase = createClient();
 
@@ -57,12 +61,29 @@ export default function SettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       setUser(user);
+      setProfileLoading(true);
+      const { data: prof } = await supabase.from("user_profiles").select("name").eq("user_id", user.id).maybeSingle();
+      if (prof) setProfileName((prof as { name: string }).name || "");
+      setProfileLoading(false);
       if (activeTab === "audit-images") fetchAuditImages();
       if (activeTab === "storage") fetchStorageFiles();
       setLoading(false);
     };
     init();
   }, []);
+
+  const saveProfile = async () => {
+    if (!user) return;
+    setProfileSaving(true);
+    const { error: saveErr } = await supabase.from("user_profiles").upsert(
+      { user_id: user.id, name: profileName.trim(), updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+    setProfileSaving(false);
+    if (saveErr) { setError(`Failed to save profile: ${saveErr.message}`); return; }
+    setSuccess("Profile saved!");
+    setTimeout(() => setSuccess(""), 2000);
+  };
 
   const fetchAuditImages = async () => {
     setAuditImagesLoading(true);
@@ -224,6 +245,24 @@ export default function SettingsPage() {
       <div className="sap-dashboard-content">
         {error && <div className="sap-error-message" style={{ marginBottom: "1rem" }}><span>{error}</span><button onClick={() => setError("")} style={{ marginLeft: "0.5rem", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>✕</button></div>}
         {success && <div className="sap-success-message" style={{ marginBottom: "1rem" }}><span>{success}</span></div>}
+
+        <div style={{ border: "1px solid var(--sap-border)", borderRadius: "12px", background: "#fff", padding: "1.25rem 1.5rem", marginBottom: "1.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <h3 style={{ margin: "0 0 0.35rem", fontSize: "1rem", color: "#0a2540" }}>My Profile</h3>
+          <p style={{ margin: "0 0 1rem", fontSize: "0.8rem", color: "#888" }}>Set your user name — it identifies you for your actions in the app.</p>
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+            <label style={{ fontSize: "0.85rem", fontWeight: 600, color: "#0a2540" }}>User Name</label>
+            <input
+              value={profileName}
+              onChange={(e) => setProfileName(e.target.value)}
+              placeholder="e.g. Ahsan"
+              disabled={profileLoading}
+              style={{ padding: "0.45rem 0.7rem", fontSize: "0.85rem", border: "1px solid #d9d9d9", borderRadius: "6px", minWidth: "220px", background: "#fff" }}
+            />
+            <button onClick={saveProfile} disabled={profileSaving} className="sap-action-btn" style={{ fontWeight: 700 }}>
+              {profileSaving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
 
         <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}>
           <button

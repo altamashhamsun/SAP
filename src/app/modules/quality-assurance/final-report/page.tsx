@@ -21,34 +21,29 @@ interface Entry {
   description: string;
   images: string[];
 }
-
-const statusColors: Record<string, { bg: string; border: string; text: string }> = {
-  "Open": { bg: "#fef2f2", border: "#dc2626", text: "#dc2626" },
-  "In Progress": { bg: "#fffbeb", border: "#d97706", text: "#b45309" },
-  "Resolved": { bg: "#f0fdf4", border: "#16a34a", text: "#16a34a" },
-  "Closed": { bg: "#f3f4f6", border: "#6b7280", text: "#374151" },
-};
-const categoryColors: Record<string, { bg: string; border: string; text: string }> = {
-  "Performance": { bg: "#fef2f2", border: "#dc2626", text: "#b91c1c" },
-  "Compliance": { bg: "#f0fdf4", border: "#16a34a", text: "#166534" },
-  "Non issue": { bg: "#f3f4f6", border: "#9ca3af", text: "#4b5563" },
-  "Development": { bg: "#eff6ff", border: "#2563eb", text: "#1d4ed8" },
-  "FIR (MAINTENANCE)": { bg: "#fff7ed", border: "#e97025", text: "#c2410c" },
-};
-
-const esc = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+interface Report {
+  branch_code: string;
+  date: string;
+  url: string;
+  public_id: string;
+  created_by: string | null;
+  created_at: string;
+}
 
 export default function FinalReport() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   const [pendingReport, setPendingReport] = useState<{ code: string; name: string; date: string } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const router = useRouter();
   const supabase = createClient();
@@ -58,12 +53,14 @@ export default function FinalReport() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       setUser(user);
-      const [bRes, qRes] = await Promise.all([
+      const [bRes, qRes, rRes] = await Promise.all([
         supabase.from("branches").select("id,name,code").order("code"),
         supabase.from("qa_issue_entries").select("*").order("issue_number"),
+        supabase.from("qa_reports").select("*"),
       ]);
       if (bRes.data) setBranches(bRes.data as Branch[]);
       if (qRes.data) setEntries(qRes.data as Entry[]);
+      if (rRes.data) setReports(rRes.data as Report[]);
       setLoading(false);
     };
     init();
@@ -89,6 +86,9 @@ export default function FinalReport() {
     ...branches.map((b) => ({ code: b.code, name: b.name })),
     ...unknownCodes.map((c) => ({ code: c, name: c })),
   ];
+
+  const reportFor = (code: string, date: string) =>
+    reports.find((r) => r.branch_code === code && r.date === date);
 
   const datesForBranch = (code: string) => {
     const map = new Map<string, Entry[]>();
@@ -120,117 +120,255 @@ export default function FinalReport() {
     router.refresh();
   };
 
-  const generatePdf = (code: string, name: string, date: string) => {
+  const toDataUrl = (url: string) =>
+    new Promise<string | null>((resolve) => {
+      fetch(url)
+        .then((r) => r.blob())
+        .then((blob) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        })
+        .catch(() => resolve(null));
+    });
+
+  const normalizeImage = (url: string) =>
+    new Promise<{ data: string; iw: number; ih: number } | null>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        if (!w || !h) { resolve(null); return; }
+        const max = 700;
+        if (w > max || h > max) {
+          const s = Math.min(max / w, max / h);
+          w = Math.round(w * s);
+          h = Math.round(h * s);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve(null); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve({ data: canvas.toDataURL("image/jpeg", 0.85), iw: w, ih: h });
+      };
+      img.onerror = () => {
+        toDataUrl(url).then((data) => resolve(data ? { data, iw: 1, ih: 1 } : null));
+      };
+      img.src = url;
+    });
+
+  const generatePdf = async (code: string, name: string, date: string) => {
     setGenerating(true);
     setError("");
-    const list = filtered.filter((e) => e.branch_code === code && e.date === date);
-    const done = list.filter((x) => isDone(x.status)).length;
-    const pending = list.filter((x) => isPending(x.status)).length;
-    const major = list.filter((x) => x.severity === "Major").length;
-    const minor = list.filter((x) => x.severity === "Minor").length;
+    setSuccess("");
+    try {
+      const list = filtered.filter((e) => e.branch_code === code && e.date === date);
+      const done = list.filter((x) => isDone(x.status)).length;
+      const pending = list.filter((x) => isPending(x.status)).length;
+      const major = list.filter((x) => x.severity === "Major").length;
+      const minor = list.filter((x) => x.severity === "Minor").length;
 
-    const cats = new Map<string, number>();
-    for (const x of list) cats.set(x.category, (cats.get(x.category) || 0) + 1);
-    const catText = Array.from(cats.entries()).map(([c, n]) => `${esc(c)}: ${n}`).join(" · ");
+      const cats = new Map<string, number>();
+      for (const x of list) cats.set(x.category, (cats.get(x.category) || 0) + 1);
+      const catText = Array.from(cats.entries()).map(([c, n]) => `${c}: ${n}`).join("  •  ");
 
-    const badge = (t: string, bg: string, border: string, color: string) =>
-      `<span class="badge" style="background:${bg};border:1px solid ${border};color:${color}">${esc(t)}</span>`;
+      const { jsPDF } = await import("jspdf");
+      const { default: autoTable } = await import("jspdf-autotable");
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-    const rows = list.map((x) => {
-      const sc = statusColors[x.status] || statusColors["Open"];
-      const cc = categoryColors[x.category] || categoryColors["Non issue"];
-      const sev = x.severity === "Major"
-        ? { bg: "#fef2f2", border: "#dc2626", text: "#dc2626" }
-        : { bg: "#fffbeb", border: "#d97706", text: "#b45309" };
-      const pics = (x.images || []).map((img) => `<a href="${esc(img)}" target="_blank"><img class="thumb" src="${esc(img)}" alt="pic" /></a>`).join(" ");
-      const dp = isDone(x.status)
-        ? badge("Done", "#f0fdf4", "#16a34a", "#16a34a")
-        : badge("Pending", "#fef2f2", "#dc2626", "#dc2626");
-      return `<tr>
-        <td class="num">${esc(x.issue_number)}</td>
-        <td>${esc(x.description)}</td>
-        <td>${esc(x.department || "—")}</td>
-        <td>${badge(x.category, cc.bg, cc.border, cc.text)}</td>
-        <td>${badge(x.severity || "—", sev.bg, sev.border, sev.text)}</td>
-        <td>${badge(x.status, sc.bg, sc.border, sc.text)}</td>
-        <td>${dp}</td>
-        <td>${pics || "—"}</td>
-      </tr>`;
-    }).join("");
+      doc.setFillColor(0, 112, 243);
+      doc.rect(0, 0, 210, 4, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(20);
+      doc.setTextColor(0, 112, 243);
+      doc.text("QAC — Quality Assurance", 14, 22);
+      doc.setFontSize(14);
+      doc.setTextColor(10, 37, 64);
+      doc.text(`Final Report — ${name} (${code})`, 14, 29);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(107, 114, 128);
+      doc.text(`Issues marked on: ${date}    •    Generated: ${new Date().toLocaleString()}    •    ${list.length} issues`, 14, 35);
 
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8" />
-<title>QA Final Report — ${esc(code)} — ${esc(date)}</title>
-<style>
-  @page { size: A4; margin: 14mm; }
-  * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #1f2937; font-size: 12px; margin: 0; }
-  .head { border-bottom: 3px solid #0070f3; padding-bottom: 10px; margin-bottom: 16px; }
-  .brand { font-size: 21px; font-weight: 800; color: #0070f3; }
-  .title { font-size: 15px; font-weight: 700; margin-top: 4px; color: #0a2540; }
-  .meta { font-size: 10px; color: #6b7280; margin-top: 3px; }
-  .summary { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 16px; }
-  .card { flex: 1; min-width: 90px; text-align: center; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 8px; }
-  .card b { display: block; font-size: 20px; }
-  .card span { font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
-  .cats { font-size: 10.5px; color: #374151; margin-bottom: 14px; }
-  table { width: 100%; border-collapse: collapse; }
-  th { background: #0070f3; color: #fff; text-align: left; padding: 7px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
-  td { border: 1px solid #d1d5db; padding: 6px 8px; font-size: 10.5px; vertical-align: top; }
-  .num { font-weight: 700; white-space: nowrap; }
-  .badge { font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 9.5px; display: inline-block; white-space: nowrap; }
-  img.thumb { width: 180px; height: 180px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
-  .footer { margin-top: 18px; font-size: 9px; color: #9ca3af; text-align: right; }
-  tr { break-inside: avoid; }
-</style>
-</head>
-<body>
-  <div class="head">
-    <div class="brand">QAC — Quality Assurance</div>
-    <div class="title">Final Report — ${esc(name)} (${esc(code)})</div>
-    <div class="meta">Issues marked on: ${esc(date)} &nbsp;·&nbsp; Generated: ${esc(new Date().toLocaleString())} &nbsp;·&nbsp; ${list.length} issues</div>
-  </div>
-  <div class="summary">
-    <div class="card"><b style="color:#0070f3">${list.length}</b><span>Total Issues</span></div>
-    <div class="card"><b style="color:#16a34a">✓ ${done}</b><span>Done</span></div>
-    <div class="card"><b style="color:#dc2626">⏳ ${pending}</b><span>Pending</span></div>
-    <div class="card"><b style="color:#dc2626">${major}</b><span>Major</span></div>
-    <div class="card"><b style="color:#b45309">${minor}</b><span>Minor</span></div>
-  </div>
-  ${catText ? `<div class="cats"><b>Category breakdown:</b> ${catText}</div>` : ""}
-  <table>
-    <thead>
-      <tr>
-        <th>Issue #</th>
-        <th style="width:30%">Issue Description</th>
-        <th>Department</th>
-        <th>Category</th>
-        <th>Severity</th>
-        <th>Status</th>
-        <th>Done / Pending</th>
-        <th>Pictures</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows}
-    </tbody>
-  </table>
-  <div class="footer">Prepared by QAC · ${esc(new Date().toLocaleString())}</div>
-</body>
-</html>`;
+      const cards: Array<[string, string, number[]]> = [
+        [String(list.length), "Total Issues", [0, 112, 243]],
+        [`✓ ${done}`, "Done", [22, 163, 74]],
+        [`⏳ ${pending}`, "Pending", [220, 38, 38]],
+        [String(major), "Major", [220, 38, 38]],
+        [String(minor), "Minor", [180, 83, 9]],
+      ];
+      cards.forEach((c, i) => {
+        const x = 14 + i * 40;
+        doc.setDrawColor(229, 231, 235);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(x, 40, 36, 20, 2, 2, "S");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(15);
+        doc.setTextColor(c[2][0], c[2][1], c[2][2]);
+        doc.text(c[0], x + 18, 51, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(107, 114, 128);
+        doc.text(c[1].toUpperCase(), x + 18, 56, { align: "center" });
+      });
 
-    const win = window.open("", "_blank");
-    if (!win) {
-      setError("Pop-up was blocked. Allow pop-ups for this site to generate the PDF.");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(55, 65, 81);
+      let y = 68;
+      doc.text("Category breakdown: ", 14, y);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      if (catText) {
+        const lines = doc.splitTextToSize(catText, 150);
+        doc.text(lines, 45, y);
+        y += (lines.length - 1) * 4.2;
+      }
+      y += 6;
+
+      const head = [["Issue #", "Issue Description", "Department", "Category", "Severity", "Status", "Done / Pending"]];
+      const body = list.map((x) => [
+        x.issue_number,
+        x.description,
+        x.department || "—",
+        x.category,
+        x.severity || "—",
+        x.status,
+        isDone(x.status) ? "Done" : "Pending",
+      ]);
+
+      autoTable(doc, {
+        startY: y,
+        head,
+        body,
+        styles: { fontSize: 8, cellPadding: 1.6 },
+        headStyles: { fillColor: [0, 112, 243], fontSize: 8 },
+        columnStyles: { 0: { cellWidth: 16 }, 2: { cellWidth: 28 } },
+        margin: { left: 14, right: 14 },
+        didParseCell: (data) => {
+          if (data.section === "body") {
+            if (data.column.index === 3) {
+              const v = String(data.cell.raw);
+              data.cell.styles.fontStyle = "bold";
+              data.cell.styles.textColor = v === "Performance" ? [185, 28, 28] : v === "Compliance" ? [22, 101, 52] : v === "Development" ? [29, 78, 216] : v === "FIR (MAINTENANCE)" ? [194, 65, 12] : [75, 85, 99];
+            }
+            if (data.column.index === 4) {
+              data.cell.styles.fontStyle = "bold";
+              data.cell.styles.textColor = String(data.cell.raw) === "Major" ? [220, 38, 38] : [180, 83, 9];
+            }
+            if (data.column.index === 6) {
+              data.cell.styles.fontStyle = "bold";
+              data.cell.styles.textColor = String(data.cell.raw) === "Done" ? [22, 163, 74] : [220, 38, 38];
+            }
+          }
+        },
+      });
+
+      const images: { data: string; iw: number; ih: number; num: string }[] = [];
+      for (const x of list) {
+        for (const img of x.images || []) {
+          const norm = await normalizeImage(img);
+          if (norm) images.push({ ...norm, num: x.issue_number });
+        }
+      }
+
+      if (images.length) {
+        const tableEnd = (doc as any).lastAutoTable?.finalY || y;
+        let py = tableEnd + 10;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(10, 37, 64);
+        doc.text("Evidence Pictures", 14, py);
+        py += 8;
+        const cols = 3;
+        const cellW = 56;
+        const gap = 8;
+        const maxH = 40;
+        let i = 0;
+        for (const im of images) {
+          const col = i % cols;
+          let px = 14 + col * (cellW + gap);
+          const r = Math.min(cellW / im.iw, maxH / im.ih);
+          const w = im.iw * r;
+          const h = im.ih * r;
+          if (py + h + 8 > 290) {
+            doc.addPage();
+            py = 16;
+          }
+          try {
+            doc.addImage(im.data, "JPEG", px, py, w, h);
+          } catch {
+            /* skip unreadable image */
+          }
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(107, 114, 128);
+          doc.text(`Issue ${im.num}`, px, py + h + 4);
+          i += 1;
+          if (col === cols - 1) py += maxH + 10;
+        }
+        py += 8;
+        doc.setFontSize(9);
+        doc.setTextColor(156, 163, 175);
+        doc.text(`Prepared by QAC • ${new Date().toLocaleString()}`, 14, 290);
+      }
+
+      setSuccess("PDF generated — uploading…");
+      const blob = doc.output("blob") as Blob;
+      const fd = new FormData();
+      fd.append("file", blob, `qa-final-report-${code}-${date}.pdf`);
+      fd.append("type", "raw");
+      fd.append("folder", "qac-reports");
+
+      const res = await fetch("/api/cloudinary", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+
+      const { error: insErr } = await supabase.from("qa_reports").upsert(
+        { branch_code: code, date, url: data.url, public_id: data.public_id, created_by: user?.email || null },
+        { onConflict: "branch_code,date" }
+      );
+      if (insErr) throw insErr;
+
+      setReports((prev) => [
+        ...prev.filter((r) => !(r.branch_code === code && r.date === date)),
+        { branch_code: code, date, url: data.url, public_id: data.public_id, created_by: user?.email || null, created_at: new Date().toISOString() },
+      ]);
+      setSuccess(`Report saved for ${code} on ${date}. It is now view-only — delete it first if you want to regenerate.`);
+      setPendingReport(null);
+    } catch (err) {
+      setError(`Failed to generate report: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
       setGenerating(false);
-      return;
     }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); setGenerating(false); setPendingReport(null); }, 500);
+  };
+
+  const deleteReport = async (code: string, date: string, publicId: string) => {
+    if (!window.confirm(`Delete the saved PDF for ${code} (${date})? You can generate a new one afterwards.`)) return;
+    setDeleting(true);
+    setError("");
+    setSuccess("");
+    try {
+      await fetch("/api/cloudinary", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ public_id: publicId, resource_type: "raw" }),
+      }).catch(() => null);
+      const { error: delErr } = await supabase.from("qa_reports").delete().eq("branch_code", code).eq("date", date);
+      if (delErr) throw delErr;
+      setReports((prev) => prev.filter((r) => !(r.branch_code === code && r.date === date)));
+      setSuccess("Report deleted — you can now generate a new one.");
+      setPendingReport(null);
+    } catch (err) {
+      setError(`Failed to delete report: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) {
@@ -292,7 +430,8 @@ export default function FinalReport() {
       </div>
 
       <div className="sap-dashboard-content">
-        {error && <div className="sap-error-message" style={{ marginBottom: "1rem" }}><span>{error}</span><button onClick={() => setError("")} style={{ marginLeft: "0.5rem", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>✕</button></div>}
+        {error && <div className="sap-error-message" style={{ marginBottom: "0.75rem" }}><span>{error}</span><button onClick={() => setError("")} style={{ marginLeft: "0.5rem", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>✕</button></div>}
+        {success && <div className="sap-success-message" style={{ marginBottom: "0.75rem" }}><span>{success}</span><button onClick={() => setSuccess("")} style={{ marginLeft: "0.5rem", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>✕</button></div>}
 
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
           <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0a2540" }}>Report Period:</span>
@@ -355,7 +494,7 @@ export default function FinalReport() {
                         <p style={{ fontSize: "0.82rem", color: "#999", margin: "0.5rem 0" }}>No issues recorded for {b.code} in the selected period.</p>
                       ) : (
                         <div style={{ overflowX: "auto", borderRadius: "8px", border: "1px solid var(--sap-border)", background: "#fff" }}>
-                          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "520px" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "560px" }}>
                             <thead>
                               <tr>
                                 <th style={thStyle}>Date Marked</th>
@@ -366,24 +505,48 @@ export default function FinalReport() {
                               </tr>
                             </thead>
                             <tbody>
-                              {dates.map((d) => (
-                                <tr key={d.date} onClick={() => setPendingReport({ code: b.code, name: b.name, date: d.date })}
-                                  style={{ cursor: "pointer" }}>
-                                  <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "nowrap", color: "#0a2540" }}>{d.date}</td>
-                                  <td style={{ ...tdStyle, textAlign: "center", fontWeight: 600 }}>{d.count}</td>
-                                  <td style={{ ...tdStyle, textAlign: "center", color: "#16a34a", fontWeight: 600 }}>{d.done}</td>
-                                  <td style={{ ...tdStyle, textAlign: "center", color: "#dc2626", fontWeight: 600 }}>{d.pending}</td>
-                                  <td style={tdStyle}>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setPendingReport({ code: b.code, name: b.name, date: d.date }); }}
-                                      className="sap-action-btn"
-                                      style={{ fontWeight: 700, padding: "0.3rem 0.7rem", fontSize: "0.72rem", whiteSpace: "nowrap" }}
-                                    >
-                                      🖨 Make PDF
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
+                              {dates.map((d) => {
+                                const rep = reportFor(b.code, d.date);
+                                return (
+                                  <tr key={d.date} onClick={() => setPendingReport({ code: b.code, name: b.name, date: d.date })}
+                                    style={{ cursor: "pointer" }}>
+                                    <td style={{ ...tdStyle, fontWeight: 700, whiteSpace: "nowrap", color: "#0a2540" }}>{d.date}</td>
+                                    <td style={{ ...tdStyle, textAlign: "center", fontWeight: 600 }}>{d.count}</td>
+                                    <td style={{ ...tdStyle, textAlign: "center", color: "#16a34a", fontWeight: 600 }}>{d.done}</td>
+                                    <td style={{ ...tdStyle, textAlign: "center", color: "#dc2626", fontWeight: 600 }}>{d.pending}</td>
+                                    <td style={tdStyle}>
+                                      {rep ? (
+                                        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", justifyContent: "center" }}>
+                                          <a
+                                            href={rep.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            style={{ fontWeight: 700, padding: "0.3rem 0.7rem", fontSize: "0.72rem", whiteSpace: "nowrap", borderRadius: "7px", background: "#16a34a", color: "#fff", textDecoration: "none", cursor: "pointer" }}
+                                          >
+                                            ✔ View PDF
+                                          </a>
+                                          <button
+                                            title="Delete this report"
+                                            onClick={(e) => { e.stopPropagation(); setPendingReport({ code: b.code, name: b.name, date: d.date }); }}
+                                            style={{ padding: "0.3rem 0.55rem", fontSize: "0.78rem", borderRadius: "7px", border: "1px solid #dc2626", background: "#fff", color: "#dc2626", cursor: "pointer", lineHeight: 1 }}
+                                          >
+                                            🗑
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); setPendingReport({ code: b.code, name: b.name, date: d.date }); }}
+                                          className="sap-action-btn"
+                                          style={{ fontWeight: 700, padding: "0.3rem 0.7rem", fontSize: "0.72rem", whiteSpace: "nowrap" }}
+                                        >
+                                          🖨 Make PDF
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -396,20 +559,49 @@ export default function FinalReport() {
           </div>
         )}
 
-        {pendingReport && !generating && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "1rem" }}>
-            <div style={{ background: "#fff", borderRadius: "14px", padding: "1.5rem 1.75rem", maxWidth: "440px", width: "100%", boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
-              <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.05rem", color: "#0a2540" }}>Make PDF report?</h3>
-              <p style={{ fontSize: "0.85rem", color: "#555", margin: "0 0 1.25rem", lineHeight: 1.5 }}>
-                Generate the QA Final Report PDF for <b>{pendingReport.name} ({pendingReport.code})</b> covering issues marked on <b>{pendingReport.date}</b>?
-              </p>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
-                <button onClick={() => setPendingReport(null)} style={{ padding: "0.45rem 1rem", fontSize: "0.82rem", background: "#f5f5f5", border: "1px solid #d9d9d9", borderRadius: "8px", cursor: "pointer", color: "#555" }}>Cancel</button>
-                <button onClick={() => generatePdf(pendingReport.code, pendingReport.name, pendingReport.date)} className="sap-action-btn" style={{ fontWeight: 700 }}>Generate PDF</button>
-              </div>
+        {generating && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110, padding: "1rem" }}>
+            <div style={{ background: "#fff", borderRadius: "14px", padding: "1.75rem 2rem", maxWidth: "380px", width: "100%", textAlign: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+              <div className="sap-loading-spinner" style={{ width: 36, height: 36, borderWidth: 3, margin: "0 auto 1rem" }}></div>
+              <p style={{ fontSize: "0.9rem", color: "#0a2540", fontWeight: 700 }}>Generating report…</p>
+              <p style={{ fontSize: "0.78rem", color: "#888", marginTop: "0.35rem" }}>Building the PDF and uploading it. This can take a few seconds.</p>
             </div>
           </div>
         )}
+
+        {pendingReport && !generating && !deleting && (() => {
+          const existing = reportFor(pendingReport.code, pendingReport.date);
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "1rem" }}>
+              <div style={{ background: "#fff", borderRadius: "14px", padding: "1.5rem 1.75rem", maxWidth: "440px", width: "100%", boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+                {existing ? (
+                  <>
+                    <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.05rem", color: "#0a2540" }}>Report already generated</h3>
+                    <p style={{ fontSize: "0.85rem", color: "#555", margin: "0 0 1.25rem", lineHeight: 1.5 }}>
+                      A PDF for <b>{pendingReport.name} ({pendingReport.code})</b> on <b>{pendingReport.date}</b> already exists. Reports are generated once — you can view it below, or delete it to generate it again.
+                    </p>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem", flexWrap: "wrap" }}>
+                      <button onClick={() => setPendingReport(null)} style={{ padding: "0.45rem 1rem", fontSize: "0.82rem", background: "#f5f5f5", border: "1px solid #d9d9d9", borderRadius: "8px", cursor: "pointer", color: "#555" }}>Close</button>
+                      <button onClick={() => deleteReport(pendingReport.code, pendingReport.date, existing.public_id)} style={{ padding: "0.45rem 1rem", fontSize: "0.82rem", background: "#fff", border: "1px solid #dc2626", borderRadius: "8px", cursor: "pointer", color: "#dc2626", fontWeight: 700 }}>🗑 Delete Report</button>
+                      <a href={existing.url} target="_blank" rel="noreferrer" className="sap-action-btn" style={{ fontWeight: 700, textDecoration: "none" }}>Open PDF</a>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 style={{ margin: "0 0 0.75rem", fontSize: "1.05rem", color: "#0a2540" }}>Make PDF report?</h3>
+                    <p style={{ fontSize: "0.85rem", color: "#555", margin: "0 0 1.25rem", lineHeight: 1.5 }}>
+                      Generate the QA Final Report PDF for <b>{pendingReport.name} ({pendingReport.code})</b> covering issues marked on <b>{pendingReport.date}</b>? The report will be saved once — afterwards you can only view it or delete it to regenerate.
+                    </p>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+                      <button onClick={() => setPendingReport(null)} style={{ padding: "0.45rem 1rem", fontSize: "0.82rem", background: "#f5f5f5", border: "1px solid #d9d9d9", borderRadius: "8px", cursor: "pointer", color: "#555" }}>Cancel</button>
+                      <button onClick={() => generatePdf(pendingReport.code, pendingReport.name, pendingReport.date)} className="sap-action-btn" style={{ fontWeight: 700 }}>Generate PDF</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

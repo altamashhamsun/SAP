@@ -6,6 +6,9 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
+    const resourceType = (formData.get("type") as string) || "image";
+    const folder = (formData.get("folder") as string) || "qac-findings";
+
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -16,19 +19,21 @@ export async function POST(req: NextRequest) {
 
     const timestamp = Math.round(Date.now() / 1000);
     const signature = generateSignature(apiSecret, {
-      folder: "qac-findings",
+      folder,
       timestamp,
     });
+    const validTypes = ["image", "raw", "video", "auto"] as const;
+    const resource = validTypes.includes(resourceType as any) ? resourceType : "image";
 
     const uploadFormData = new FormData();
     uploadFormData.append("file", file);
     uploadFormData.append("api_key", apiKey);
     uploadFormData.append("timestamp", timestamp.toString());
-    uploadFormData.append("folder", "qac-findings");
+    uploadFormData.append("folder", folder);
     uploadFormData.append("signature", signature);
 
     const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      `https://api.cloudinary.com/v1_1/${cloudName}/${resource}/upload`,
       { method: "POST", body: uploadFormData }
     );
     const data = await res.json();
@@ -45,7 +50,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { public_id } = await req.json();
+    const { public_id, resource_type } = await req.json();
     if (!public_id) return NextResponse.json({ error: "No public_id" }, { status: 400 });
 
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
@@ -67,7 +72,7 @@ export async function DELETE(req: NextRequest) {
     });
 
     const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`,
+      `https://api.cloudinary.com/v1_1/${cloudName}/${resource_type || "image"}/destroy`,
       { method: "POST", body: params }
     );
     const data = await res.json();
