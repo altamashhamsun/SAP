@@ -199,8 +199,8 @@ export default function FinalReport() {
 
       const cards: Array<[string, string, number[]]> = [
         [String(list.length), "Total Issues", [0, 112, 243]],
-        [`✓ ${done}`, "Done", [22, 163, 74]],
-        [`⏳ ${pending}`, "Pending", [220, 38, 38]],
+        [String(done), "Done", [22, 163, 74]],
+        [String(pending), "Pending", [220, 38, 38]],
         [String(major), "Major", [220, 38, 38]],
         [String(minor), "Minor", [180, 83, 9]],
       ];
@@ -272,53 +272,63 @@ export default function FinalReport() {
         },
       });
 
-      const images: { data: string; iw: number; ih: number; num: string }[] = [];
+      const tableEnd = (doc as any).lastAutoTable?.finalY || y;
+      let py = tableEnd + 10;
+
       for (const x of list) {
-        for (const img of x.images || []) {
+        const imgs = x.images || [];
+        if (!imgs.length) continue;
+        const norms: { data: string; iw: number; ih: number }[] = [];
+        for (const img of imgs) {
           const norm = await normalizeImage(img);
-          if (norm) images.push({ ...norm, num: x.issue_number });
+          if (norm) norms.push(norm);
         }
-      }
+        if (!norms.length) continue;
 
-      let contentEndY = images.length ? 0 : ((doc as any).lastAutoTable?.finalY || y) + 16;
-
-      if (images.length) {
-        const tableEnd = (doc as any).lastAutoTable?.finalY || y;
-        let py = tableEnd + 10;
+        if (py + 16 > 290) {
+          doc.addPage();
+          py = 16;
+        }
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
+        doc.setFontSize(11);
         doc.setTextColor(10, 37, 64);
-        doc.text("Evidence Pictures", 14, py);
-        py += 8;
-        const cols = 3;
+        doc.text(`Issue ${x.issue_number} — Evidence`, 14, py);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(107, 114, 128);
+        const dDesc = doc.splitTextToSize(x.description || "", 180);
+        doc.text(dDesc, 22, py + 5);
+        py += 5 + dDesc.length * 4 + 4;
+
+        let col = 0;
         const cellW = 56;
         const gap = 8;
-        const maxH = 40;
-        let i = 0;
-        for (const im of images) {
-          const col = i % cols;
-          let px = 14 + col * (cellW + gap);
-          const r = Math.min(cellW / im.iw, maxH / im.ih);
-          const w = im.iw * r;
-          const h = im.ih * r;
-          if (py + h + 8 > 290) {
+        const maxH = 42;
+        for (const n of norms) {
+          const px = 14 + col * (cellW + gap);
+          const r = Math.min(cellW / n.iw, maxH / n.ih);
+          const w = n.iw * r;
+          const h = n.ih * r;
+          if (py + maxH + 4 > 290) {
             doc.addPage();
             py = 16;
           }
           try {
-            doc.addImage(im.data, "JPEG", px, py, w, h);
+            doc.addImage(n.data, "JPEG", px, py, w, h);
           } catch {
             /* skip unreadable image */
           }
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
-          doc.setTextColor(107, 114, 128);
-          doc.text(`Issue ${im.num}`, px, py + h + 4);
-          i += 1;
-          if (col === cols - 1) py += maxH + 10;
+          col += 1;
+          if (col === 3) {
+            py += maxH + 6;
+            col = 0;
+          }
         }
-        contentEndY = py + maxH;
+        if (col > 0) py += maxH + 6;
+        py += 6;
       }
+
+      let contentEndY = py;
 
       const signatureData = await toDataUrl("/qa-signature.png");
       if (contentEndY + 36 > 290) {
