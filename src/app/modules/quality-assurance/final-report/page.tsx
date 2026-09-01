@@ -44,6 +44,7 @@ export default function FinalReport() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [profileName, setProfileName] = useState("");
 
   const router = useRouter();
   const supabase = createClient();
@@ -53,6 +54,8 @@ export default function FinalReport() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       setUser(user);
+      const { data: prof } = await supabase.from("user_profiles").select("name").eq("user_id", user.id).maybeSingle();
+      if (prof) setProfileName((prof as { name: string }).name || "");
       const [bRes, qRes, rRes] = await Promise.all([
         supabase.from("branches").select("id,name,code").order("code"),
         supabase.from("qa_issue_entries").select("*").order("issue_number"),
@@ -277,6 +280,8 @@ export default function FinalReport() {
         }
       }
 
+      let contentEndY = images.length ? 0 : ((doc as any).lastAutoTable?.finalY || y) + 16;
+
       if (images.length) {
         const tableEnd = (doc as any).lastAutoTable?.finalY || y;
         let py = tableEnd + 10;
@@ -312,11 +317,32 @@ export default function FinalReport() {
           i += 1;
           if (col === cols - 1) py += maxH + 10;
         }
-        py += 8;
-        doc.setFontSize(9);
-        doc.setTextColor(156, 163, 175);
-        doc.text(`Prepared by QAC • ${new Date().toLocaleString()}`, 14, 290);
+        contentEndY = py + maxH;
       }
+
+      const signatureData = await toDataUrl("/qa-signature.png");
+      if (contentEndY + 36 > 290) {
+        doc.addPage();
+        contentEndY = 16;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text(`Reported by: ${profileName || user?.email || ""}`, 14, contentEndY);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text("Department: Quality Assurance and Compliance.", 14, contentEndY + 6);
+      if (signatureData) {
+        try {
+          doc.addImage(signatureData, "PNG", 14, contentEndY + 9, 42, 16);
+        } catch {
+          /* signature could not be embedded */
+        }
+      }
+      doc.setFontSize(9);
+      doc.setTextColor(156, 163, 175);
+      doc.text(`Prepared by QAC • ${new Date().toLocaleString()}`, 14, contentEndY + 32);
 
       setSuccess("PDF generated — uploading…");
       const blob = doc.output("blob") as Blob;

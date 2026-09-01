@@ -47,6 +47,7 @@ export default function AuditReports() {
   const [showSignOff, setShowSignOff] = useState(false);
   const [signOffName, setSignOffName] = useState("");
   const [signOffRole, setSignOffRole] = useState("");
+  const [profileName, setProfileName] = useState("");
 
   const reportRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -57,6 +58,8 @@ export default function AuditReports() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       setUser(user);
+      const { data: prof } = await supabase.from("user_profiles").select("name").eq("user_id", user.id).maybeSingle();
+      if (prof) setProfileName((prof as { name: string }).name || "");
       await fetchAll();
       setLoading(false);
     };
@@ -389,6 +392,17 @@ export default function AuditReports() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              <div className="sap-report-section">
+                <h2>5. Reported by</h2>
+                <div className="sap-report-signoff">
+                  <div><strong>Reported by:</strong> {profileName || user?.email || "—"}</div>
+                  <div><strong>Department:</strong> Quality Assurance and Compliance.</div>
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <img src="/qa-signature.png" alt="Signature" style={{ width: 150, maxWidth: "100%" }} />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
