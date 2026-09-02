@@ -11,6 +11,7 @@ alter table public.room_inspections add column if not exists action_other text d
 alter table public.room_inspections add column if not exists inspected_by text default '';
 alter table public.room_inspections add column if not exists finalized boolean default false;
 alter table public.room_inspections add column if not exists pdf_url text default '';
+alter table public.room_inspections add column if not exists pdf_public_id text default '';
 
 create table if not exists public.room_finding_images (
   id uuid primary key default gen_random_uuid(),

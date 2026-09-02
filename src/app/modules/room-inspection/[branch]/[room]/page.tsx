@@ -26,6 +26,7 @@ interface Inspection {
   inspected_by: string;
   finalized: boolean;
   pdf_url: string;
+  pdf_public_id: string;
 }
 interface Finding {
   id: string;
@@ -288,12 +289,18 @@ export default function RoomDetail() {
       const list = reportList.map((a) => ({ kind: a.kind, name: a.kind === "area" ? areaName(a) : itemName(a), refId: a.kind === "area" ? a.area_id : a.item_id }));
       const pdf = await buildPdf(ins, list);
       const blob = pdf.output("blob") as Blob;
-      const path = `${roomId}/${ins.inspection_date}.pdf`;
-      const { error: upErr } = await supabase.storage.from("room-reports").upload(path, blob, { contentType: "application/pdf", upsert: true });
-      if (upErr) throw new Error(upErr.message);
-      const url = `/api/qa/report-pdf?bucket=room-reports&path=${encodeURIComponent(path)}`;
-      await supabase.from("room_inspections").update({ finalized: true, pdf_url: url }).eq("id", ins.id);
-      setInspections((prev) => prev.map((x) => x.id === ins.id ? { ...x, finalized: true, pdf_url: url } as Inspection : x));
+      const fileExt = "pdf";
+      const formData = new FormData();
+      formData.append("file", new File([blob], `room-report-${ins.inspection_date}.${fileExt}`, { type: "application/pdf" }));
+      formData.append("type", "raw");
+      formData.append("folder", "room-reports");
+      const res = await fetch("/api/cloudinary", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      const url = data.url as string;
+      const publicId = (data.public_id || "") as string;
+      await supabase.from("room_inspections").update({ finalized: true, pdf_url: url, pdf_public_id: publicId }).eq("id", ins.id);
+      setInspections((prev) => prev.map((x) => x.id === ins.id ? { ...x, finalized: true, pdf_url: url, pdf_public_id: publicId } as Inspection : x));
       setSuccess("Report finalized. PDF generated!");
       setTimeout(() => setSuccess(""), 4000);
     } catch (err) {
@@ -308,9 +315,16 @@ export default function RoomDetail() {
     if (!window.confirm("Delete this inspection report? This cannot be undone.")) return;
     setError("");
     const ins = inspections.find((x) => x.id === selectedInspectionId);
-    if (ins?.pdf_url) {
-      const path = `${roomId}/${ins.inspection_date}.pdf`;
-      await supabase.storage.from("room-reports").remove([path]);
+    if (ins?.pdf_public_id) {
+      try {
+        await fetch("/api/cloudinary", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ public_id: ins.pdf_public_id, resource_type: "raw" }),
+        });
+      } catch {
+        // ignore cleanup errors, still delete the DB row
+      }
     }
     const { error: e } = await supabase.from("room_inspections").delete().eq("id", selectedInspectionId);
     if (e) { setError(e.message); return; }
@@ -322,100 +336,294 @@ export default function RoomDetail() {
 
   const buildPdf = async (ins: Inspection, list: { kind: "area" | "item"; name: string; refId: string | null }[]) => {
     const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
+    const doc = new jsPDF("p", "mm", "a4");
     const W = 210;
-    let y = 14;
-    const line = (h = 0.6) => { y += h; };
-    const type = (t: string) => { doc.setFont("helvetica", t); };
+    const M = 14;
+    const CW = W - M * 2;
+    let y = 0;
 
-    doc.setFontSize(14); type("bold");
-    doc.text("Hotel Room Audit / Inspection Report", W / 2, y, { align: "center" });
-    doc.setLineWidth(0.5); doc.line(14, y + 2, W - 14, y + 2);
-    line(8);
+    const setFont = (t: "bold" | "normal" | "italic" | "bolditalic", size: number) => {
+      doc.setFont("helvetica", t);
+      doc.setFontSize(size);
+    };
 
-    doc.setFontSize(10); type("normal");
-    doc.text(`Property Name: ${ins.property_name || "________________"}` + `        |        Branch: ${branch?.name || ins.property_name || "________________"}`, 14, y);
-    line(7);
-    const fmtDate = ins.inspection_date ? new Date(ins.inspection_date + "T00:00:00").toLocaleDateString("en-GB") : "____/____/______";
+    const text = (str: string, x = M, addY = 0) => doc.text(str, x, y + addY);
+
+    const newPageIfNeeded = (needed: number) => {
+      if (y + needed > 282) {
+        doc.addPage();
+        y = M;
+        return true;
+      }
+      return false;
+    };
+
+    const checkbox = (x: number, checked: boolean) => {
+      doc.setDrawColor(30, 30, 30);
+      doc.setLineWidth(0.3);
+      doc.rect(x, y - 3, 4, 4);
+      if (checked) {
+        doc.setLineWidth(0.5);
+        doc.line(x + 0.6, y - 1, x + 2, y - 1.6);
+        doc.line(x + 2, y - 1.6, x + 3.6, y - 3.2);
+      }
+    };
+
+    const sectionTitle = (label: string) => {
+      newPageIfNeeded(16);
+      y += 4;
+      setFont("bold", 11);
+      doc.setTextColor(15, 23, 42);
+      doc.text(label, M, y);
+      doc.setDrawColor(0, 112, 243);
+      doc.setLineWidth(0.8);
+      doc.line(M, y + 1.5, M + 24, y + 1.5);
+      y += 6;
+    };
+
+    const labelValue = (label: string, value: string, x = M, w = 0) => {
+      setFont("normal", 9);
+      doc.setTextColor(90, 90, 90);
+      doc.text(label, x, y);
+      setFont("normal", 9.5);
+      doc.setTextColor(20, 20, 20);
+      doc.text(value, x + w, y);
+    };
+
+    // ===== Header band =====
+    doc.setFillColor(0, 112, 243);
+    doc.rect(0, 0, W, 26, "F");
+    doc.setTextColor(255);
+    setFont("bold", 13);
+    doc.text("HOTEL ROOM AUDIT / INSPECTION REPORT", W / 2, 11, { align: "center" });
+    setFont("normal", 8.5);
+    doc.text("Quality Assurance & Compliance (QAC)", W / 2, 17, { align: "center" });
+    doc.text("Facility & Service Readiness Inspection", W / 2, 22, { align: "center" });
+    y = 34;
+
+    // ===== Info box =====
+    doc.setDrawColor(0, 112, 243);
+    doc.setLineWidth(0.5);
+    doc.rect(M, y - 5, CW, 34);
+    labelValue("Property:", ins.property_name || "—", M + 2, M + 20);
+    labelValue("Branch:", branch?.name || ins.property_name || "—", 108, 18);
+    y += 6;
+    const fmtDate = ins.inspection_date ? new Date(ins.inspection_date + "T00:00:00").toLocaleDateString("en-GB") : "—";
     const now = new Date();
     const time = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
-    doc.text(`Date: ${fmtDate}        |        Time: ${time}`, 14, y);
-    line(7);
-    doc.text(`Inspected by: ${ins.inspected_by || "________________"}`, 14, y);
-    doc.text(`Coordination with: ${ins.coordination_with || "________________"}`, 105, y);
-    line(7);
-    doc.text(`Room Number: ${room?.name || "________"}        |        Floor: ${room?.floor || "________"}        |        Room Type: ${ins.room_type || "________"}`, 14, y);
-    line(9);
+    labelValue("Date:", fmtDate, M + 2, M + 20);
+    labelValue("Time:", time, 108, 18);
+    y += 6;
+    labelValue("Inspected by:", ins.inspected_by || "—", M + 2, M + 20);
+    labelValue("Coordination with:", ins.coordination_with || "—", 108, 58);
+    y += 6;
+    labelValue("Room No.:", room?.name || "—", M + 2, M + 20);
+    labelValue("Floor:", room?.floor || "—", 108, 18);
+    doc.setLineWidth(0.8);
+    doc.rect(M, y - 5, CW, 0.01);
+    y += 4;
 
-    doc.setFontSize(11); type("bold");
-    doc.text("1. Report Objective", 14, y); line(6);
-    doc.setFontSize(9); type("normal");
-    const obj = doc.splitTextToSize("To inspect the assigned guest room(s) for cleanliness, hygiene standards, condition of furniture & fixtures, availability of amenities, and overall readiness for guest occupancy. Any deficiencies found will be recorded for corrective action.", W - 28);
-    doc.text(obj, 14, y); line(obj.length * 4 + 3);
+    // ===== Room Type checkboxes =====
+    sectionTitle("ROOM TYPE");
+    newPageIfNeeded(10);
+    let cbx = M;
+    ROOM_TYPES.forEach((rt) => {
+      checkbox(cbx, ins.room_type === rt);
+      setFont("normal", 9.5);
+      doc.setTextColor(20, 20, 20);
+      doc.text(rt, cbx + 6, y);
+      cbx += 48;
+    });
+    y += 5;
 
-    doc.setFontSize(11); type("bold");
-    doc.text("2. Scope of Inspection", 14, y); line(6);
-    doc.setFontSize(9); type("normal");
+    // ===== 1. Objective =====
+    sectionTitle("1. REPORT OBJECTIVE");
+    newPageIfNeeded(20);
+    setFont("normal", 9.5);
+    doc.setTextColor(40, 40, 40);
+    const objectiveLines = doc.splitTextToSize(
+      "To inspect the assigned guest room(s) for cleanliness, hygiene standards, condition of furniture & fixtures, availability of amenities, and overall readiness for guest occupancy. Any deficiencies found will be recorded for corrective action.",
+      CW
+    );
+    doc.text(objectiveLines, M, y);
+    y += objectiveLines.length * 4.2 + 3;
+
+    // ===== 2. Scope =====
+    sectionTitle("2. SCOPE OF INSPECTION");
+    newPageIfNeeded(30);
+    setFont("normal", 9.5);
+    doc.setTextColor(40, 40, 40);
+    doc.text("This audit covers the following areas of the room:", M, y);
+    y += 5;
     const scope = [
       "Overall room cleanliness & maintenance",
-      "Bed & linen condition",
-      "Bathroom hygiene & functionality",
-      "Availability of standard amenities",
-      "Hygiene, safety & pest control",
+      "Bed & linen condition and presentation",
+      "Bathroom hygiene, supplies and functionality",
+      "Availability of standard guest amenities",
+      "Hygiene, safety & pest control measures",
       "Functionality of electrical & electronic items (AC, lights, TV, etc.)",
     ];
-    scope.forEach((s) => { doc.text(`\u2022 ${s}`, 16, y); line(5); });
-    doc.setFontSize(8); type("italic");
-    const note = doc.splitTextToSize("Note: This inspection is not limited to the physical condition and readiness of the room only. It may cover guest feedback, billing, or front-office processes.", W - 28);
-    doc.text(note, 14, y); line(note.length * 3.5 + 4);
+    scope.forEach((s) => {
+      checkbox(M, false);
+      setFont("normal", 9.5);
+      doc.setTextColor(40, 40, 40);
+      doc.text(s, M + 7, y);
+      y += 5.2;
+    });
+    setFont("italic", 8);
+    doc.setTextColor(120, 120, 120);
+    const scopeNote = doc.splitTextToSize(
+      "Note: This inspection is not limited to the physical condition and readiness of the room only. It may cover guest feedback, billing, or front-office processes.",
+      CW
+    );
+    doc.text(scopeNote, M, y + 1);
+    y += scopeNote.length * 3.4 + 3;
 
-    doc.setFontSize(11); type("bold");
-    doc.text("3. Findings", 14, y); line(6);
+    // ===== 3. Findings table =====
+    sectionTitle("3. FINDINGS");
     if (list.length === 0) {
-      doc.setFontSize(9); type("normal"); doc.text("No areas/items assigned.", 14, y); line(6);
+      newPageIfNeeded(10);
+      setFont("italic", 9.5);
+      doc.setTextColor(120, 120, 120);
+      doc.text("No areas / items assigned for this inspection.", M, y);
+      y += 8;
     } else {
-      doc.setFontSize(8.5); type("bold");
-      doc.setFillColor(0, 112, 243); doc.setTextColor(255);
-      doc.rect(14, y, W - 28, 6, "F");
-      doc.text("Type", 16, y + 4);
-      doc.text("Area / Item", 40, y + 4);
-      doc.text("Finding / Remark", 90, y + 4);
-      line(7); doc.setTextColor(0); type("normal");
+      const colX = [M, M + 22, M + 62];
+      const colW = [22, 40, CW - 62 - 22];
+      const rowH = 8;
+      const padY = 4.2;
+
+      const drawRow = (
+        cells: { text: string; x: number; w: number; bold?: boolean; fill?: [number, number, number]; color?: [number, number, number] }[],
+        h: number
+      ) => {
+        let dw = rowH;
+        cells.forEach((c) => {
+          const wrapped = doc.splitTextToSize(c.text, c.w - 3);
+          dw = Math.max(dw, wrapped.length * 3.7 + 3.5);
+        });
+        // cell boxes
+        cells.forEach((c, i) => {
+          const cx = c.x;
+          const cxx = colX[i];
+          doc.setDrawColor(180, 190, 200);
+          doc.setLineWidth(0.2);
+          doc.rect(cxx, y, c.w, dw, "S");
+          if (c.fill) {
+            doc.setFillColor(c.fill[0], c.fill[1], c.fill[2]);
+            doc.rect(cxx, y, c.w, dw, "F");
+          }
+          setFont(c.bold ? "bold" : "normal", 8.5);
+          if (c.color) doc.setTextColor(c.color[0], c.color[1], c.color[2]);
+          doc.text(c.text, cxx + 2, y + padY);
+        });
+        // horiz line
+        doc.setDrawColor(180, 190, 200);
+        doc.setLineWidth(0.2);
+        doc.line(M, y + dw, M + CW, y + dw);
+        return dw;
+      };
+
+      newPageIfNeeded(20);
+      // header row
+      const headerCells = [
+        { text: "TYPE", x: 0, w: colW[0], bold: true, fill: [0, 112, 243] as [number, number, number], color: [255, 255, 255] as [number, number, number] },
+        { text: "AREA / ITEM", x: 0, w: colW[1], bold: true, fill: [0, 112, 243] as [number, number, number], color: [255, 255, 255] as [number, number, number] },
+        { text: "FINDING / REMARK", x: 0, w: colW[2], bold: true, fill: [0, 112, 243] as [number, number, number], color: [255, 255, 255] as [number, number, number] },
+      ];
+      y += drawRow(headerCells, rowH);
       list.forEach((it) => {
         const fi = findings.find((f) => f.kind === it.kind && f[it.kind === "area" ? "area_id" : "item_id"] === it.refId);
-        const noteText = fi && fi.note ? fi.note : "";
-        const lines = doc.splitTextToSize(noteText || "-", 100);
-        const hgt = Math.max(6, lines.length * 3.6);
-        if (y + hgt > 285) { doc.addPage(); y = 14; }
-        doc.text(it.kind === "area" ? "Area" : "Item", 16, y + 4);
-        doc.text(it.name, 40, y + 4);
-        doc.text(lines, 90, y + 4);
-        y += hgt + 3;
+        const noteText = fi && fi.note ? fi.note : "—";
+        if (y >= 274) {
+          doc.addPage();
+          y = M;
+          y += drawRow(headerCells, rowH);
+        }
+        const deltas = drawRow(
+          [
+            { text: it.kind === "area" ? "Area" : "Item", x: 0, w: colW[0], bold: true },
+            { text: it.name, x: 0, w: colW[1] },
+            { text: noteText, x: 0, w: colW[2] },
+          ],
+          rowH
+        );
+        y += deltas;
       });
+      y += 3;
     }
-    line(3);
 
-    doc.setFontSize(11); type("bold");
-    doc.text("Overall Rating", 14, y); line(6);
-    doc.setFontSize(9); type("normal");
-    const ratingStr = RATINGS.map((r) => `\u25A1 ${r}`).join("    ");
-    doc.text(ratingStr, 14, y); line(7);
-    doc.text(`Selected: ${ins.overall_rating || "Not set"}`, 14, y); line(8);
+    // ===== Overall rating =====
+    sectionTitle("OVERALL RATING");
+    newPageIfNeeded(30);
+    cbx = M;
+    RATINGS.forEach((rt) => {
+      checkbox(cbx, ins.overall_rating === rt);
+      setFont("normal", 9.5);
+      doc.setTextColor(20, 20, 20);
+      doc.text(rt, cbx + 6, y);
+      cbx += 42;
+    });
+    y += 6;
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.rect(M, y - 5, CW, 0.01);
+    y += 4;
 
-    doc.setFontSize(11); type("bold");
-    doc.text("Major Issues Found", 14, y); line(6);
-    doc.setFontSize(9); type("normal");
-    const mi = doc.splitTextToSize(ins.major_issues || "________________", W - 28);
-    doc.text(mi, 14, y); line(mi.length * 4 + 4);
+    // ===== Major issues =====
+    sectionTitle("MAJOR ISSUES FOUND");
+    newPageIfNeeded(20);
+    setFont("normal", 9.5);
+    doc.setTextColor(40, 40, 40);
+    const majorLines = doc.splitTextToSize(ins.major_issues || "—", CW);
+    doc.text(majorLines, M, y);
+    y += majorLines.length * 4.2 + 3;
 
-    doc.setFontSize(11); type("bold");
-    doc.text("Action Required", 14, y); line(6);
-    doc.setFontSize(9); type("normal");
-    const actionStr = ACTIONS.map((a) => `\u25A1 ${a}`).join("    ");
-    doc.text(actionStr, 14, y); line(7);
-    doc.text(`Selected: ${ins.action_required || "Not set"}${ins.action_other ? ` | Other: ${ins.action_other}` : ""}`, 14, y); line(10);
+    // ===== Action required =====
+    sectionTitle("ACTION REQUIRED");
+    newPageIfNeeded(24);
+    cbx = M;
+    ACTIONS.forEach((a) => {
+      checkbox(cbx, ins.action_required === a);
+      setFont("normal", 9.5);
+      doc.setTextColor(20, 20, 20);
+      doc.text(a, cbx + 6, y);
+      cbx += 48;
+    });
+    if (ins.action_required === "Other" && ins.action_other) {
+      y += 6;
+      setFont("normal", 9.5);
+      doc.setTextColor(20, 20, 20);
+      doc.text(`Other: ${ins.action_other}`, M + 6, y);
+    }
+    y += 6;
 
-    doc.text(`Inspector Signature: ____________________        Date: ${fmtDate}`, 14, y);
+    // ===== Signature =====
+    newPageIfNeeded(16);
+    y += 6;
+    doc.setDrawColor(150, 150, 150);
+    doc.setLineWidth(0.3);
+    doc.line(M, y, M + 60, y);
+    setFont("normal", 8.5);
+    doc.setTextColor(90, 90, 90);
+    doc.text("INSPECTOR SIGNATURE", M, y + 3.5);
+    doc.line(M + 110, y, M + 110 + 50, y);
+    doc.text("DATE", M + 110, y + 3.5);
+    setFont("normal", 9.5);
+    doc.setTextColor(20, 20, 20);
+    doc.text(fmtDate, M + 110, y - 1);
+
+    // footer
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(140, 140, 140);
+      doc.text(`QAC - Hotel Room Audit / Inspection Report`, M, 290);
+      doc.text(`Page ${i} of ${pages}`, W - M, 290, { align: "right" });
+    }
+
     return doc;
   };
 
