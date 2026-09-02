@@ -72,6 +72,7 @@ export default function RoomDetail() {
 
   const supabase = createClient();
   const router = useRouter();
+  const creatingRef = React.useRef(false);
 
   useEffect(() => {
     const init = async () => {
@@ -156,16 +157,35 @@ export default function RoomDetail() {
     setAssignments((prev) => prev.filter((a) => a.id !== id));
   };
 
+  const findInspectionByDate = async (date: string) => {
+    const { data } = await supabase.from("room_inspections").select("*").eq("room_id", roomId).eq("inspection_date", date).maybeSingle();
+    return (data as Inspection | null) || null;
+  };
+
   const createInspection = async () => {
     if (!newDate) { setError("Pick a date first."); return; }
+    if (creatingRef.current) return;
+    creatingRef.current = true;
     setError("");
+    const existing = await findInspectionByDate(newDate);
+    if (existing) {
+      await fetchInspections();
+      setSelectedInspectionId(existing.id);
+      setNewDate("");
+      setShowDateForm(false);
+      await Promise.all([fetchFindings(existing.id), fetchImages(existing.id)]);
+      setSuccess("Report already exists for that date — opened it.");
+      setTimeout(() => setSuccess(""), 2500);
+      creatingRef.current = false;
+      return;
+    }
     const { data, error: e } = await supabase.from("room_inspections").insert({
       room_id: roomId,
       inspection_date: newDate,
       inspected_by: profileName || user?.email || "",
       property_name: branch?.name || "",
     }).select().maybeSingle();
-    if (e) { setError(e.message); return; }
+    if (e) { setError(e.message); creatingRef.current = false; return; }
     if (data) {
       await fetchInspections();
       setSelectedInspectionId(data.id);
@@ -173,13 +193,17 @@ export default function RoomDetail() {
       setShowDateForm(false);
       await Promise.all([fetchFindings(data.id), fetchImages(data.id)]);
     }
+    creatingRef.current = false;
   };
 
   const openInspectionForDate = async (date: string, inspectorName: string) => {
-    const existing = inspections.find((i) => i.inspection_date === date);
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    const existing = await findInspectionByDate(date);
     if (existing) {
       setSelectedInspectionId(existing.id);
       await Promise.all([fetchFindings(existing.id), fetchImages(existing.id)]);
+      creatingRef.current = false;
       return;
     }
     const { data, error: e } = await supabase.from("room_inspections").insert({
@@ -188,12 +212,13 @@ export default function RoomDetail() {
       inspected_by: inspectorName,
       property_name: branch?.name || "",
     }).select().maybeSingle();
-    if (e) { setError(e.message); return; }
+    if (e) { setError(e.message); creatingRef.current = false; return; }
     if (data) {
       await fetchInspections();
       setSelectedInspectionId(data.id);
       await Promise.all([fetchFindings(data.id), fetchImages(data.id)]);
     }
+    creatingRef.current = false;
   };
 
   const saveFinding = async (kind: "area" | "item", refId: string | null, note: string) => {
