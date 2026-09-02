@@ -9,6 +9,7 @@ import Link from "next/link";
 
 interface Branch { id: string; name: string; code: string; }
 interface Room { id: string; branch_id: string; name: string; room_type: string; floor: string; status: string; created_at: string; }
+interface Inspection { id: string; room_id: string; inspection_date: string; }
 
 export default function BranchRooms() {
   const params = useParams<{ branch: string }>();
@@ -25,6 +26,11 @@ export default function BranchRooms() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const [reportDates, setReportDates] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [newDate, setNewDate] = useState("");
+  const [showDateForm, setShowDateForm] = useState(false);
+
   const router = useRouter();
   const supabase = createClient();
 
@@ -33,7 +39,7 @@ export default function BranchRooms() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       setUser(user);
-      await Promise.all([fetchBranch(), fetchRooms()]);
+      await Promise.all([fetchBranch(), fetchRooms(), fetchReportDates()]);
       setLoading(false);
     };
     init();
@@ -47,6 +53,27 @@ export default function BranchRooms() {
   const fetchRooms = async () => {
     const { data } = await supabase.from("rooms").select("*").eq("branch_id", branchId).order("name");
     setRooms((data || []) as Room[]);
+  };
+
+  const fetchReportDates = async () => {
+    const { data: roms } = await supabase.from("rooms").select("id").eq("branch_id", branchId);
+    const roomIds = (roms || []).map((r) => r.id as string);
+    if (roomIds.length === 0) { setReportDates([]); return; }
+    const { data } = await supabase.from("room_inspections").select("inspection_date").in("room_id", roomIds);
+    const dates = Array.from(new Set((data || []).map((d) => d.inspection_date as string).filter(Boolean))).sort().reverse();
+    setReportDates(dates);
+    if (dates.length > 0 && !selectedDate) setSelectedDate("");
+  };
+
+  const addReportDate = () => {
+    if (!newDate) { setError("Pick a report date first."); return; }
+    setError("");
+    if (!reportDates.includes(newDate)) setReportDates((prev) => [newDate, ...prev]);
+    setSelectedDate(newDate);
+    setNewDate("");
+    setShowDateForm(false);
+    setSuccess("Report date set. Open a room to build that day's report.");
+    setTimeout(() => setSuccess(""), 2500);
   };
 
   const addRoom = async () => {
@@ -131,9 +158,33 @@ export default function BranchRooms() {
         {success && <div className="sap-success-message" style={{ marginBottom: "1rem" }}><span>{success}</span></div>}
 
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.25rem", flexWrap: "wrap", justifyContent: "space-between" }}>
-          <p style={{ fontSize: "0.85rem", color: "#666", margin: 0 }}>
-            Click a room to assign areas &amp; items and create its inspection report.
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0a2540" }}>Report Date:</span>
+            <select
+              value={selectedDate}
+              onChange={(e) => { setSelectedDate(e.target.value); setError(""); }}
+              style={{ padding: "0.45rem 0.6rem", fontSize: "0.8rem", border: "1px solid #d9d9d9", borderRadius: "6px", minWidth: "150px", background: "#fff" }}
+            >
+              <option value="">Any / No date</option>
+              {reportDates.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+            <button
+              className="sap-action-btn"
+              onClick={() => { setShowDateForm((v) => !v); setError(""); }}
+              style={{ fontWeight: 700, whiteSpace: "nowrap" }}
+            >
+              {showDateForm ? "Cancel" : "+ Set Date"}
+            </button>
+            {showDateForm && (
+              <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)}
+                  style={{ padding: "0.45rem 0.6rem", fontSize: "0.8rem", border: "1px solid #d9d9d9", borderRadius: "6px" }} />
+                <button className="sap-action-btn" onClick={addReportDate} style={{ fontWeight: 700 }}>Set</button>
+              </div>
+            )}
+          </div>
           <button
             className="sap-add-btn"
             onClick={() => { setShowForm((v) => !v); setError(""); }}
@@ -141,6 +192,11 @@ export default function BranchRooms() {
             {showForm ? "Cancel" : "+ Add Room"}
           </button>
         </div>
+        {selectedDate && (
+          <p style={{ fontSize: "0.8rem", color: "#0070f3", margin: "-0.5rem 0 1rem", fontWeight: 600 }}>
+            Now viewing reports for <strong>{selectedDate}</strong>. Opening a room below will create/open that day's report.
+          </p>
+        )}
 
         {showForm && (
           <div className="sap-form-card" style={{ marginBottom: "1.25rem" }}>
@@ -178,7 +234,7 @@ export default function BranchRooms() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.75rem" }}>
             {rooms.map((room) => (
               <div key={room.id} style={{ border: "1px solid var(--sap-border)", borderRadius: "12px", padding: "0.85rem 0.95rem", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", position: "relative" }}>
-                <Link href={`/modules/room-inspection/${branchId}/${room.id}`} style={{ textDecoration: "none" }}>
+                <Link href={`/modules/room-inspection/${branchId}/${room.id}${selectedDate ? `?date=${selectedDate}` : ""}`} style={{ textDecoration: "none" }}>
                   <div style={{ fontSize: "1rem", fontWeight: 800, color: "#0a2540" }}>{room.name}</div>
                   <div style={{ fontSize: "0.72rem", color: "#888" }}>
                     {room.room_type}{room.floor ? ` · Floor ${room.floor}` : ""}

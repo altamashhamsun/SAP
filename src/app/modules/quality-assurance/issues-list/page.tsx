@@ -299,6 +299,20 @@ export default function IssuesList() {
     setEntries((prev) => prev.map((e) => e.id === entryId ? { ...e, images: newImages } : e));
   };
 
+  const deleteIssue = async (entryId: string) => {
+    const target = entries.find((e) => e.id === entryId);
+    if (!target) return;
+    if (!window.confirm(`Delete issue #${target.issue_number}? This cannot be undone.`)) return;
+    setError("");
+    const { error: dbErr } = await supabase.from("qa_issue_entries").delete().eq("id", entryId);
+    if (dbErr) {
+      setError(`Delete failed: ${dbErr.message}`);
+      return;
+    }
+    setEntries((prev) => prev.filter((e) => e.id !== entryId));
+    setError("");
+  };
+
   const toggleRow = (id: string) => {
     const next = new Set(expandedRows);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -691,10 +705,13 @@ export default function IssuesList() {
                               </label>
                             </div>
                           </td>
-                          <td style={{ ...tdStyle, textAlign: "center" }}>
-                            <button onClick={() => toggleRow(issue.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", padding: "0.2rem" }}>
+                          <td style={{ ...tdStyle, textAlign: "center", whiteSpace: "nowrap" }}>
+                            <button onClick={() => toggleRow(issue.id)} title="Expand"
+                              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", padding: "0.2rem" }}>
                               {expandedRows.has(issue.id) ? "▼" : "▶"}
                             </button>
+                            <button onClick={() => deleteIssue(issue.id)} title="Delete issue"
+                              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem", padding: "0.2rem", color: "#cc0000", marginLeft: "0.3rem" }}>✕</button>
                           </td>
                         </tr>
                         {expandedRows.has(issue.id) && (
