@@ -118,6 +118,17 @@ function QacIcon({ type }: { type: string }) {
         <rect x="15" y="15" width="10" height="10" rx="2" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
       </svg>
     ),
+    room: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="3" y="5" width="22" height="18" rx="2" stroke="#0070f3" strokeWidth="2" fill="#fff"/>
+        <line x1="3" y1="9" x2="25" y2="9" stroke="#0070f3" strokeWidth="1.5"/>
+        <line x1="11" y1="9" x2="11" y2="23" stroke="#0070f3" strokeWidth="1.5"/>
+        <rect x="6" y="12" width="2.5" height="2.5" fill="#0070f3"/>
+        <rect x="14" y="12" width="2.5" height="2.5" fill="#0070f3" opacity="0.6"/>
+        <rect x="14" y="17" width="2.5" height="2.5" fill="#0070f3" opacity="0.35"/>
+        <rect x="19" y="17" width="3" height="6" rx="0.5" stroke="#0070f3" strokeWidth="1.2" fill="none"/>
+      </svg>
+    ),
   };
   return icons[type] || null;
 }
@@ -178,6 +189,7 @@ export default function Dashboard() {
     { icon: "audit", title: "Core Audit Management", href: "/modules/core-audit-management" },
     { icon: "ncr", title: "Non-Conformities & CAPAs", href: "/modules/ncr" },
     { icon: "quality", title: "Quality Assurance", href: "/modules/quality-assurance" },
+    { icon: "room", title: "Room Inspection", href: "/modules/room-inspection" },
     { icon: "compliance", title: "Compliance Tracking", href: "/modules/compliance-tracking" },
     { icon: "document", title: "Document Control", href: "#" },
     { icon: "risk", title: "Risk Management", href: "#" },

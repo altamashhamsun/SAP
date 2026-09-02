@@ -49,6 +49,7 @@ export default function IssuesList() {
   const [entries, setEntries] = useState<IssueEntry[]>([]);
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
   const [dateFrom, setDateFrom] = useState(new Date().toISOString().split("T")[0]);
   const [dateTo, setDateTo] = useState(new Date().toISOString().split("T")[0]);
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
@@ -110,11 +111,18 @@ export default function IssuesList() {
     setError("");
     setSuccess("");
 
-    const { data: roundsData } = await supabase
+    const targetBranch = branches.find((b) => b.id === selectedBranchId) || null;
+    const targetCode = targetBranch ? targetBranch.code : "";
+
+    let query = supabase
       .from("qa_daily_rounds")
       .select("branch_id,date,round_number,content")
       .eq("date", selectedDate)
       .order("round_number", { ascending: true });
+    if (targetBranch) {
+      query = query.eq("branch_id", targetBranch.id);
+    }
+    const { data: roundsData } = await query;
     const rounds = (roundsData || []).map((r) => ({
       branch_code: branches.find((b) => b.id === r.branch_id)?.code || "",
       round_number: r.round_number,
@@ -122,7 +130,7 @@ export default function IssuesList() {
     })).filter((r) => r.content && r.content.trim());
 
     if (rounds.length === 0) {
-      setError("No notepad content found for this date. Add notes in Issue Noted first.");
+      setError(`No notepad content found for ${targetCode ? targetCode + " on " : ""}${selectedDate}. Add notes in Issue Noted first.`);
       setGenerating(false);
       return;
     }
@@ -139,26 +147,87 @@ export default function IssuesList() {
       return;
     }
 
-    const { error: delErr } = await supabase.from("qa_issue_entries").delete().eq("date", selectedDate);
-    if (delErr) {
-      setError(`Failed to reset previous list: ${delErr.message}`);
-      setGenerating(false);
-      return;
+    const aiIssues: IssueEntry[] = (data.issues || []).map((i: IssueEntry) => ({ ...i, images: [] }));
+
+    const toDbEntry = (i: IssueEntry): Omit<IssueEntry, "id"> => ({
+      date: i.date,
+      issue_number: i.issue_number,
+      branch_code: i.branch_code,
+      department: i.department,
+      category: i.category,
+      severity: i.severity || "",
+      status: i.status,
+      repeated: i.repeated,
+      description: i.description,
+      images: i.images || [],
+    });
+
+    let existingQuery = supabase.from("qa_issue_entries").select("*").eq("date", selectedDate);
+    if (targetBranch) {
+      existingQuery = existingQuery.eq("branch_code", targetCode);
+    }
+    const { data: existing } = await existingQuery;
+    const existingIssues = (existing || []) as IssueEntry[];
+
+    const normalize = (s: string) => (s || "").toLowerCase().replace(/\s+/g, " ").trim();
+    const matchKey = (issue: IssueEntry) =>
+      `${(issue.branch_code || "").toLowerCase()}::${normalize(issue.description)}`;
+
+    const existingMap = new Map<string, IssueEntry>();
+    existingIssues.forEach((e) => {
+      const key = matchKey(e);
+      existingMap.set(key, e);
+    });
+
+    const matchedIds = new Set<string>();
+    const toInsert: Omit<IssueEntry, "id">[] = [];
+    let mergedCount = 0;
+
+    aiIssues.forEach((ai) => {
+      const key = matchKey(ai);
+      const found = existingMap.get(key);
+      if (found) {
+        matchedIds.add(found.id);
+        mergedCount++;
+      } else {
+        toInsert.push(toDbEntry(ai));
+      }
+    });
+
+    const deletedIds = existingIssues
+      .filter((e) => !matchedIds.has(e.id))
+      .map((e) => e.id);
+
+    if (deletedIds.length > 0) {
+      const { error: delErr } = await supabase
+        .from("qa_issue_entries")
+        .delete()
+        .in("id", deletedIds);
+      if (delErr) {
+        setError(`Failed to clean up removed issues: ${delErr.message}`);
+        setGenerating(false);
+        return;
+      }
     }
 
-    const { error: insErr } = await supabase.from("qa_issue_entries").insert(data.issues);
-    if (insErr) {
-      setError(`Failed to save issues: ${insErr.message}`);
-      setGenerating(false);
-      return;
+    if (toInsert.length > 0) {
+      const { error: insErr } = await supabase.from("qa_issue_entries").insert(toInsert);
+      if (insErr) {
+        setError(`Failed to save new issues: ${insErr.message}`);
+        setGenerating(false);
+        return;
+      }
     }
 
     setDateFrom(selectedDate);
     setDateTo(selectedDate);
     await loadEntries(selectedDate, selectedDate);
     setGenerating(false);
-    setSuccess(`List created for ${selectedDate} — ${data.issues.length} issues${data.issues.some((i: IssueEntry) => i.repeated) ? " (repeated issues checked)" : ""}`);
-    setTimeout(() => setSuccess(""), 4000);
+
+    const scope = targetCode ? ` for ${targetCode}` : "";
+    const kept = existingIssues.length - deletedIds.length;
+    setSuccess(`List ${targetCode ? "updated" : "created"}${scope} on ${selectedDate} — ${aiIssues.length} issues from AI, ${mergedCount} matched & preserved (severity/status/images kept), ${deletedIds.length} removed, ${kept} existing kept${aiIssues.some((i: IssueEntry) => i.repeated) ? " (repeated issues checked)" : ""}`);
+    setTimeout(() => setSuccess(""), 6000);
   };
 
   const updateEntry = async (id: string, field: string, value: string) => {
@@ -350,6 +419,19 @@ export default function IssuesList() {
           </div>
           <div style={{ width: "1px", height: "2rem", background: "#e5e7eb" }} />
           <div>
+            <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#666", marginBottom: "0.25rem", display: "block" }}>Select Branch (optional — target one branch)</label>
+            <select
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              style={{ padding: "0.45rem 0.6rem", fontSize: "0.8rem", border: "1px solid #d9d9d9", borderRadius: "6px", background: "#fff", minWidth: "180px" }}
+            >
+              <option value="">All Branches</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.code} · {b.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label style={{ fontSize: "0.7rem", fontWeight: 600, color: "#666", marginBottom: "0.25rem", display: "block" }}>Select Date to Create AI List</label>
             <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
               <input
@@ -359,7 +441,7 @@ export default function IssuesList() {
                 style={{ padding: "0.45rem 0.6rem", fontSize: "0.8rem", border: "1px solid #d9d9d9", borderRadius: "6px", background: "#fff" }}
               />
               <button onClick={createList} disabled={generating} className="sap-action-btn" style={{ fontWeight: 700 }}>
-                {generating ? "⏳ AI is creating list..." : `Create ${entries.some((e) => e.date === selectedDate) ? "(Regenerate) " : ""}List from this Date`}
+                {generating ? "⏳ AI is creating list..." : `Create ${entries.some((e) => e.date === selectedDate) ? "(Update) " : ""}List`}
               </button>
             </div>
           </div>
