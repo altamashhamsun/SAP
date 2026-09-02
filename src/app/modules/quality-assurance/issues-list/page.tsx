@@ -53,6 +53,7 @@ export default function IssuesList() {
   const [dateFrom, setDateFrom] = useState(new Date().toISOString().split("T")[0]);
   const [dateTo, setDateTo] = useState(new Date().toISOString().split("T")[0]);
   const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
+  const [branchDateFilter, setBranchDateFilter] = useState<Record<string, string>>({});
   const [generating, setGenerating] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -363,6 +364,21 @@ export default function IssuesList() {
     };
   };
 
+  const statForDate = (code: string) => {
+    const d = branchDateFilter[code];
+    const list = entries.filter(
+      (e) => e.branch_code === code && (!d || e.date === d)
+    );
+    return {
+      count: list.length,
+      done: list.filter((e) => isDone(e.status)).length,
+      pending: list.filter((e) => isPending(e.status)).length,
+      major: list.filter((e) => e.severity === "Major").length,
+      minor: list.filter((e) => e.severity === "Minor").length,
+      repeated: list.filter((e) => e.repeated).length,
+    };
+  };
+
   const doneTotal = entries.filter((e) => isDone(e.status)).length;
   const pendingTotal = entries.filter((e) => isPending(e.status)).length;
 
@@ -485,9 +501,13 @@ export default function IssuesList() {
 
         {branchRows.length > 0 ? (
           branchRows.map((b) => {
-            const s = statFor(b.code);
             const open = expandedBranches.has(b.code);
-            const list = entries.filter((e) => e.branch_code === b.code);
+            const branchAll = entries.filter((e) => e.branch_code === b.code);
+            const s = statForDate(b.code);
+            const list = branchDateFilter[b.code]
+              ? branchAll.filter((e) => e.date === branchDateFilter[b.code])
+              : branchAll;
+            const datesForBranch = Array.from(new Set(branchAll.map((e) => e.date))).sort().reverse();
             return (
               <div key={b.code} style={{ border: "1px solid var(--sap-border)", borderRadius: "12px", marginBottom: "0.65rem", overflow: "hidden", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                 <div
@@ -497,6 +517,26 @@ export default function IssuesList() {
                   <span style={{ color: "#0070f3", fontSize: "0.85rem", width: "1.1rem", textAlign: "center" }}>{open ? "▼" : "▶"}</span>
                   <span className="sap-branch-code-tag">{b.code}</span>
                   <span style={{ fontWeight: 700, color: "#0a2540", flex: 1, minWidth: "150px" }}>{b.name}</span>
+                  {datesForBranch.length > 0 && (
+                    <select
+                      value={branchDateFilter[b.code] || ""}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setBranchDateFilter((prev) => {
+                          const next = { ...prev };
+                          if (v) next[b.code] = v; else delete next[b.code];
+                          return next;
+                        });
+                      }}
+                      style={{ padding: "0.3rem 0.5rem", fontSize: "0.75rem", border: "1px solid #d9d9d9", borderRadius: "6px", background: "#fff", cursor: "pointer" }}
+                    >
+                      <option value="">All dates ({datesForBranch.length})</option>
+                      {datesForBranch.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  )}
                   <div style={{ display: "flex", gap: "1.3rem", alignItems: "center" }}>
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: "1rem", fontWeight: 800, color: "#0070f3" }}>{s.count}</div>
