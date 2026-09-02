@@ -147,7 +147,11 @@ export default function IssuesList() {
       return;
     }
 
-    const aiIssues: IssueEntry[] = (data.issues || []).map((i: IssueEntry) => ({ ...i, images: [] }));
+    const aiIssues: IssueEntry[] = (data.issues || []).map((i: IssueEntry) => ({
+      ...i,
+      branch_code: targetCode || String(i.branch_code || ""),
+      images: [],
+    }));
 
     const toDbEntry = (i: IssueEntry): Omit<IssueEntry, "id"> => ({
       date: i.date,
