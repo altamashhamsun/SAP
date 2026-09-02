@@ -232,7 +232,7 @@ export default function FinalReport() {
         doc.text(lines, 45, y);
         y += (lines.length - 1) * 4.2;
       }
-      y += 6;
+      y += 10;
 
       const head = [["Issue #", "Issue Description", "Department", "Category", "Severity", "Status", "Done / Pending"]];
       const body = list.map((x) => [
@@ -245,6 +245,45 @@ export default function FinalReport() {
         isDone(x.status) ? "Done" : "Pending",
       ]);
 
+      const pageWidth = 210;
+      const marginL = 14;
+      const avail = pageWidth - marginL * 2;
+      const maxImgW = 56;
+      const maxImgH = 42;
+      const gap = 4;
+      const maxCols = 3;
+
+      const issueNorms: { data: string; iw: number; ih: number }[][] = [];
+      const issueBands: number[] = [];
+      const issueSized: { w: number; h: number }[][] = [];
+      for (const x of list) {
+        const norms: { data: string; iw: number; ih: number }[] = [];
+        for (const img of x.images || []) {
+          const norm = await normalizeImage(img);
+          if (norm) norms.push(norm);
+        }
+        issueNorms.push(norms);
+        const sized = norms.map((n) => {
+          const r = Math.min(maxImgW / n.iw, maxImgH / n.ih);
+          return { w: n.iw * r, h: n.ih * r };
+        });
+        issueSized.push(sized);
+        const sub: number[] = [];
+        let cur: number[] = [];
+        for (const s2 of sized) {
+          cur.push(s2.h);
+          if (cur.length === maxCols) {
+            sub.push(Math.max(...cur));
+            cur = [];
+          }
+        }
+        if (cur.length) sub.push(Math.max(...cur));
+        const stacked = sub.reduce((a, b) => a + b, 0) + gap * Math.max(0, sub.length - 1);
+        issueBands.push(stacked > 0 ? stacked + 2 : 0);
+      }
+
+      const rowBottoms: { page: number; y: number }[] = [];
+
       autoTable(doc, {
         startY: y,
         head,
@@ -253,8 +292,21 @@ export default function FinalReport() {
         headStyles: { fillColor: [0, 112, 243], fontSize: 8 },
         columnStyles: { 0: { cellWidth: 16 }, 2: { cellWidth: 28 } },
         margin: { left: 14, right: 14 },
+        didDrawCell: (data) => {
+          if (data.section === "body") {
+            const bottom = data.cell.y + data.cell.height;
+            const prev = rowBottoms[data.row.index];
+            const actualPage = (data.table.startPageNumber ?? 1) - 1 + data.pageNumber;
+            if (!prev || bottom > prev.y) rowBottoms[data.row.index] = { page: actualPage, y: bottom };
+          }
+        },
         didParseCell: (data) => {
           if (data.section === "body") {
+            const band = issueBands[data.row.index] || 0;
+            if (band) {
+              data.cell.styles.cellPadding = [1.6, 1.6, 1.6 + band, 1.6];
+              data.cell.styles.valign = "top";
+            }
             if (data.column.index === 3) {
               const v = String(data.cell.raw);
               data.cell.styles.fontStyle = "bold";
@@ -273,62 +325,53 @@ export default function FinalReport() {
       });
 
       const tableEnd = (doc as any).lastAutoTable?.finalY || y;
-      let py = tableEnd + 10;
 
-      for (const x of list) {
-        const imgs = x.images || [];
-        if (!imgs.length) continue;
-        const norms: { data: string; iw: number; ih: number }[] = [];
-        for (const img of imgs) {
-          const norm = await normalizeImage(img);
-          if (norm) norms.push(norm);
-        }
-        if (!norms.length) continue;
+      for (let i = 0; i < list.length; i++) {
+        const norms = issueNorms[i];
+        const sized = issueSized[i];
+        const band = issueBands[i] || 0;
+        if (!norms.length || !band) continue;
+        const rb = rowBottoms[i];
+        if (!rb) continue;
 
-        if (py + 16 > 290) {
-          doc.addPage();
-          py = 16;
+        let stackedH = 0;
+        {
+          const sub: number[] = [];
+          let cur: number[] = [];
+          for (const s2 of sized) {
+            cur.push(s2.h);
+            if (cur.length === maxCols) {
+              sub.push(Math.max(...cur));
+              cur = [];
+            }
+          }
+          if (cur.length) sub.push(Math.max(...cur));
+          stackedH = sub.reduce((a, b) => a + b, 0) + gap * Math.max(0, sub.length - 1);
         }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.setTextColor(10, 37, 64);
-        doc.text(`Issue ${x.issue_number} — Evidence`, 14, py);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(107, 114, 128);
-        const dDesc = doc.splitTextToSize(x.description || "", 180);
-        doc.text(dDesc, 22, py + 5);
-        py += 5 + dDesc.length * 4 + 4;
 
-        let col = 0;
-        const cellW = 56;
-        const gap = 8;
-        const maxH = 42;
-        for (const n of norms) {
-          const px = 14 + col * (cellW + gap);
-          const r = Math.min(cellW / n.iw, maxH / n.ih);
-          const w = n.iw * r;
-          const h = n.ih * r;
-          if (py + maxH + 4 > 290) {
-            doc.addPage();
-            py = 16;
+        doc.setPage(rb.page);
+        let py = rb.y - stackedH - 1;
+        let k = 0;
+        while (k < sized.length) {
+          const count = Math.max(1, Math.min(maxCols, sized.length - k));
+          const rowItems = sized.slice(k, k + count);
+          const rowW = rowItems.reduce((a, b, idx) => a + b.w + (idx > 0 ? gap : 0), 0);
+          const totalH = Math.max(...rowItems.map((b) => b.h));
+          let px = marginL + (avail - rowW) / 2;
+          for (let j = k; j < k + count; j++) {
+            try {
+              doc.addImage(norms[j].data, "JPEG", px, py, sized[j].w, sized[j].h);
+            } catch {
+              /* skip unreadable image */
+            }
+            px += sized[j].w + gap;
           }
-          try {
-            doc.addImage(n.data, "JPEG", px, py, w, h);
-          } catch {
-            /* skip unreadable image */
-          }
-          col += 1;
-          if (col === 3) {
-            py += maxH + 6;
-            col = 0;
-          }
+          k += count;
+          py += totalH + gap;
         }
-        if (col > 0) py += maxH + 6;
-        py += 6;
       }
 
-      let contentEndY = py;
+      let contentEndY = tableEnd + 10;
 
       const signatureData = await toDataUrl("/qa-signature.png");
       if (contentEndY + 36 > 290) {
