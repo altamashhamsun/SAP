@@ -291,7 +291,7 @@ export default function RoomDetail() {
       const path = `${roomId}/${ins.inspection_date}.pdf`;
       const { error: upErr } = await supabase.storage.from("room-reports").upload(path, blob, { contentType: "application/pdf", upsert: true });
       if (upErr) throw new Error(upErr.message);
-      const url = `/api/qa/report-pdf?path=${encodeURIComponent(path)}`;
+      const url = `/api/qa/report-pdf?bucket=room-reports&path=${encodeURIComponent(path)}`;
       await supabase.from("room_inspections").update({ finalized: true, pdf_url: url }).eq("id", ins.id);
       setInspections((prev) => prev.map((x) => x.id === ins.id ? { ...x, finalized: true, pdf_url: url } as Inspection : x));
       setSuccess("Report finalized. PDF generated!");

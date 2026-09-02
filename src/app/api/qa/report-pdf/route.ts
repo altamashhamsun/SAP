@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(req: NextRequest) {
   try {
     const path = req.nextUrl.searchParams.get("path");
+    const bucket = req.nextUrl.searchParams.get("bucket") || "qa-reports";
     if (!path) return new NextResponse("Missing path", { status: 400 });
 
     const supabase = await createClient();
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
     } = await supabase.auth.getUser();
     if (!user) return new NextResponse("Unauthorized", { status: 401 });
 
-    const { data, error } = await supabase.storage.from("qa-reports").download(path);
+    const { data, error } = await supabase.storage.from(bucket).download(path);
     if (error || !data) return new NextResponse("Report not found", { status: 404 });
 
     const buf = Buffer.from(await data.arrayBuffer());
