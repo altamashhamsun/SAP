@@ -100,9 +100,6 @@ export default function BranchRooms() {
 
   if (!user) return null;
 
-  const clearCount = rooms.filter((r) => r.status === "Clear").length;
-  const occupiedCount = rooms.filter((r) => r.status !== "Clear").length;
-
   return (
     <div className="sap-dashboard">
       <div className="sap-top-bar" style={{ justifyContent: "space-between" }}>
@@ -134,20 +131,9 @@ export default function BranchRooms() {
         {success && <div className="sap-success-message" style={{ marginBottom: "1rem" }}><span>{success}</span></div>}
 
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.25rem", flexWrap: "wrap", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <div style={{ background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "10px", padding: "0.55rem 1rem", minWidth: "110px" }}>
-              <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0070f3" }}>{rooms.length}</div>
-              <div style={{ fontSize: "0.68rem", color: "#666", fontWeight: 600 }}>Total Rooms</div>
-            </div>
-            <div style={{ background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "10px", padding: "0.55rem 1rem", minWidth: "110px" }}>
-              <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#16a34a" }}>{clearCount}</div>
-              <div style={{ fontSize: "0.68rem", color: "#666", fontWeight: 600 }}>Clear</div>
-            </div>
-            <div style={{ background: "#fff", border: "1px solid var(--sap-border)", borderRadius: "10px", padding: "0.55rem 1rem", minWidth: "110px" }}>
-              <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#dc2626" }}>{occupiedCount}</div>
-              <div style={{ fontSize: "0.68rem", color: "#666", fontWeight: 600 }}>Occupied / Other</div>
-            </div>
-          </div>
+          <p style={{ fontSize: "0.85rem", color: "#666", margin: 0 }}>
+            Click a room to assign areas &amp; items and create its inspection report.
+          </p>
           <button
             className="sap-add-btn"
             onClick={() => { setShowForm((v) => !v); setError(""); }}
@@ -161,7 +147,7 @@ export default function BranchRooms() {
             <h3>New Room</h3>
             <div className="sap-field-group">
               <label className="sap-field-label">Room Name / Number</label>
-              <input className="sap-field-input" value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="e.g. 101, Suite A, Conference Hall" />
+              <input className="sap-field-input" value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="e.g. 101, Suite A" />
             </div>
             <div className="sap-field-group">
               <label className="sap-field-label">Room Type</label>
@@ -187,30 +173,20 @@ export default function BranchRooms() {
         )}
 
         {rooms.length === 0 ? (
-          <p className="sap-empty-msg">
-            No rooms set up for this branch yet. Add a room above. (You can also tell us where your room data comes from — e.g. an external system — and we can import it.)
-          </p>
+          <p className="sap-empty-msg">No rooms set up for this branch yet. Add a room above.</p>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.75rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.75rem" }}>
             {rooms.map((room) => (
-              <div key={room.id} style={{ border: "1px solid var(--sap-border)", borderRadius: "12px", padding: "0.9rem 1rem", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", position: "relative" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.3rem" }}>
-                  <span style={{ fontWeight: 800, color: "#0a2540" }}>{room.name}</span>
-                  <button onClick={() => deleteRoom(room.id)} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", color: "#cc0000", fontSize: "0.85rem" }}>✕</button>
-                </div>
-                <div style={{ fontSize: "0.72rem", color: "#888" }}>
-                  {room.room_type}{room.floor ? ` · Floor ${room.floor}` : ""}
-                </div>
-                <div style={{ marginTop: "0.5rem" }}>
-                  <span style={{
-                    fontSize: "0.68rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "20px",
-                    color: room.status === "Clear" ? "#16a34a" : "#dc2626",
-                    background: room.status === "Clear" ? "#f0fdf4" : "#fef2f2",
-                    border: `1px solid ${room.status === "Clear" ? "#86efac" : "#fca5a5"}`,
-                  }}>
-                    {room.status}
-                  </span>
-                </div>
+              <div key={room.id} style={{ border: "1px solid var(--sap-border)", borderRadius: "12px", padding: "0.85rem 0.95rem", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", position: "relative" }}>
+                <Link href={`/modules/room-inspection/${branchId}/${room.id}`} style={{ textDecoration: "none" }}>
+                  <div style={{ fontSize: "1rem", fontWeight: 800, color: "#0a2540" }}>{room.name}</div>
+                  <div style={{ fontSize: "0.72rem", color: "#888" }}>
+                    {room.room_type}{room.floor ? ` · Floor ${room.floor}` : ""}
+                  </div>
+                  <div style={{ marginTop: "0.5rem", fontSize: "0.72rem", color: "#0070f3", fontWeight: 600 }}>Open →</div>
+                </Link>
+                <button onClick={() => deleteRoom(room.id)} title="Delete"
+                  style={{ position: "absolute", top: 6, right: 6, background: "none", border: "none", cursor: "pointer", color: "#cc0000", fontSize: "0.8rem" }}>✕</button>
               </div>
             ))}
           </div>
